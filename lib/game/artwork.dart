@@ -7,6 +7,34 @@ import 'combat_state.dart';
 
 /// Original vector sprites, rendered at logical resolution on every screen size.
 class Artwork {
+  static void healthBar(
+    Canvas canvas,
+    Rect rect,
+    int health,
+    int maximum, {
+    bool shielded = false,
+  }) {
+    final ratio = maximum <= 0 ? 0.0 : (health / maximum).clamp(0.0, 1.0);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect.inflate(1), const Radius.circular(3)),
+      Paint()..color = const Color(0xee06121e),
+    );
+    if (ratio > 0) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(rect.left, rect.top, rect.width * ratio, rect.height),
+          const Radius.circular(2),
+        ),
+        Paint()
+          ..color = shielded
+              ? const Color(0xff66bfff)
+              : ratio < 0.3
+              ? const Color(0xffff6f77)
+              : const Color(0xff8effc4),
+      );
+    }
+  }
+
   static void aircraft(
     Canvas canvas,
     Offset at,

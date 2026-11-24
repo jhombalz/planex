@@ -5,9 +5,35 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:planex/main.dart';
 import 'package:planex/game/flight_game.dart';
 import 'package:planex/game/combat_state.dart';
+import 'package:planex/game/weapon.dart';
 import 'package:planex/services/player_profile.dart';
 
 void main() {
+  testWidgets(
+    'unlocked weapon button cycles during flight and persists selection',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final profile = PlayerProfile(await SharedPreferences.getInstance());
+      await profile.recordStage(3);
+      await tester.pumpWidget(PlanexApp(profile: profile, enableAudio: false));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Start flight'));
+      await tester.pump(const Duration(milliseconds: 16));
+      final game = tester
+          .widget<GameWidget<FlightGame>>(find.byType(GameWidget<FlightGame>))
+          .game!;
+      expect(game.combat.weapon, Weapon.plasma);
+      await tester.tap(find.text('PLASMA'));
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(game.combat.weapon, Weapon.pulse);
+      await tester.tap(find.text('PULSE'));
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(game.combat.weapon, Weapon.laser);
+      expect(profile.selectedWeapon, Weapon.laser);
+      game.pauseFlight();
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets(
     'start, steer and bomb with a second finger, then lifecycle pause',
     (tester) async {

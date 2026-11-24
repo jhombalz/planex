@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'game/aircraft.dart';
 import 'game/artwork.dart';
 import 'game/flight_game.dart';
+import 'game/weapon.dart';
 import 'services/player_profile.dart';
 
 Future<void> main() async {
@@ -74,6 +75,25 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
                 builder: (context, value, child) => Stack(
                   children: [
                     Positioned(
+                      bottom: 16,
+                      left: game.profile.leftHanded ? null : 16,
+                      right: game.profile.leftHanded ? 16 : null,
+                      child: Tooltip(
+                        message: 'Switch weapon',
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(124, 60),
+                            backgroundColor: const Color(0xee091522),
+                          ),
+                          onPressed: game.combat.availableWeapons.length > 1
+                              ? game.cycleWeapon
+                              : null,
+                          icon: const Icon(Icons.swap_horiz),
+                          label: Text(game.combat.weapon.label),
+                        ),
+                      ),
+                    ),
+                    Positioned(
                       top: 0,
                       right: 4,
                       child: IconButton.filledTonal(
@@ -138,6 +158,18 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
                             const SizedBox(height: 12),
                             const Text(
                               'Striker unlocked in the hangar.',
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              '${Weapon.values[game.combat.stage].label} UNLOCKED',
+                              style: const TextStyle(
+                                color: Color(0xff86eadc),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              Weapon.values[game.combat.stage].description,
                               textAlign: TextAlign.center,
                             ),
                             if (!game.combat.victory) ...[
@@ -279,6 +311,40 @@ class Hangar extends StatelessWidget {
                         'Drag anywhere to fly. Collect P for power and B for bombs. Destroy boss turrets to expose the core.',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 12, height: 1.5),
+                      ),
+                      ExpansionTile(
+                        title: Text(
+                          'Weapons · ${profile.selectedWeapon.label}',
+                        ),
+                        tilePadding: EdgeInsets.zero,
+                        children: [
+                          Wrap(
+                            spacing: 6,
+                            children: Weapon.values
+                                .map(
+                                  (weapon) => ChoiceChip(
+                                    label: Text(weapon.label),
+                                    selected: profile.selectedWeapon == weapon,
+                                    onSelected:
+                                        weapon.requiredStage <=
+                                                profile.clearedStage &&
+                                            !paused
+                                        ? (_) => unawaited(
+                                            profile.selectWeapon(weapon),
+                                          )
+                                        : null,
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              'Clear stage 1: Laser\nClear stage 2: Homing Missiles\nClear stage 3: Plasma\nSwitch unlocked weapons using the flight button.',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
                       ),
                       ExpansionTile(
                         title: const Text('Settings & controls'),

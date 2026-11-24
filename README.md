@@ -4,7 +4,7 @@ An offline Android vertical arcade shooter built with Flutter and Flame.
 
 ## Download for Android
 
-[**Download Phases 3–5 APK (v0.5.1)**](https://github.com/jhombalz/planex/releases/download/v0.5.1-phase5/planex-v0.5.1.apk)
+[**Download Android APK (v0.6.0)**](https://github.com/jhombalz/planex/releases/download/v0.6.0-combat/planex-v0.6.0.apk)
 
 Open the link on your phone, download the APK, then open it to install. Allow
 installation from your browser if Android prompts. You can install this over the
@@ -13,7 +13,8 @@ previous Planex test build from this repository.
 This is an optimized test build using development debug signing. Physical-device
 performance, audio interruptions and production signing are part of Phase 6.
 
-Earlier builds: [Phase 2](https://github.com/jhombalz/planex/releases/download/v0.2.0-phase2/planex-phase2.apk)
+Earlier builds: [Phases 3–5](https://github.com/jhombalz/planex/releases/download/v0.5.1-phase5/planex-v0.5.1.apk)
+· [Phase 2](https://github.com/jhombalz/planex/releases/download/v0.2.0-phase2/planex-phase2.apk)
 · [Phase 1](https://github.com/jhombalz/planex/releases/download/v0.1.0-phase1/planex-phase1-debug.apk)
 · [All releases](https://github.com/jhombalz/planex/releases)
 
@@ -22,7 +23,8 @@ Earlier builds: [Phase 2](https://github.com/jhombalz/planex/releases/download/v
 - Drag anywhere in the playfield to steer. Weapons fire automatically.
 - Tap **BOMB** with a second finger to clear enemy bullets and damage enemies.
   Bombs grant temporary protection; you start with two and can carry five.
-- Collect **P** for four weapon levels: single, twin, spread and five-way fire.
+- Collect **P** for four power levels. Pulse upgrades from single to twin, spread
+  and five-way fire; other weapons gain beam width/damage or missile count/damage.
   Collect **B** to replenish bombs. Maxed-out pickups award bonus points.
 - You have three lives. Respawning grants a two-second shield and costs one
   power level. Clear a stage to receive another bomb.
@@ -31,10 +33,33 @@ Earlier builds: [Phase 2](https://github.com/jhombalz/planex/releases/download/v
 - Pause with the top-right button or Android Back. App interruptions pause the
   flight; tap **Resume flight** to continue.
 
+## Weapons and harder combat
+
+| Unlock | Weapon | Behavior |
+| --- | --- | --- |
+| Available immediately | Pulse | Rapid multishot cannon |
+| Clear stage 1 | Laser | Continuous beam that pierces aligned enemies |
+| Clear stage 2 | Homing Missiles | Tracks enemies and exposed boss parts; heavy impact damage |
+| Clear stage 3 | Plasma | Heavy three-way energy cannon for future runs |
+
+Unlocks are permanent. A newly unlocked weapon is equipped on the next stage.
+Choose a starting weapon in the hangar's **Weapons** section, or tap the weapon
+button opposite **BOMB** to cycle available weapons during flight.
+
+Every enemy has a health bar. The boss panel shows total health, separate left/core/
+right health, and shield/exposed/enraged status. The boss moves below its panel so
+the UI does not obscure the settled fight. Bombs produce shockwave rings, sparks
+and staggered explosions even on an empty screen. Reduced motion disables shake,
+screen flash, moving shockwave rings and sparks.
+
+Combat is harder than v0.5.1: faster enemies, more enemies per formation, stronger
+health scaling, extra late-stage waves, faster aimed shots and spread fire from
+turrets. Bosses have more health, fire faster, and enrage below half core health.
+
 The hangar includes the five best scores, plane selection and settings. **Swift**
 is agile; **Striker** starts at power 2 and handles more slowly. Unlock Striker by
 earning 5,000 points in a run or clearing stage 1. Unlocks, completed/ended-run
-scores, plane choice, mute, reduced motion, button side and sensitivity save
+scores, plane and weapon choices, mute, reduced motion, button side and sensitivity save
 locally. In-progress flights are not restored after the app process closes.
 
 All artwork is original vector art rendered in code. The bundled soundtrack and
@@ -56,7 +81,7 @@ automated checks cover combat and campaign rules, saves and malformed-data
 recovery, multitouch steering/bombs, lifecycle pause and stage-clear/victory UI.
 Native audio playback and device performance are not verified by widget tests.
 
-Validation for v0.5.1: `flutter analyze` passed, all 24 automated tests passed,
+Validation for v0.6.0: `flutter analyze` passed, all 35 automated tests passed,
 and the optimized Android APK built successfully.
 
 ## Run and verify
