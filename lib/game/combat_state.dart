@@ -9,14 +9,16 @@ enum BulletOwner { player, enemy }
 
 enum EnemyPattern { straight, sine, turret }
 
-enum PickupKind { power, bomb }
+enum PickupKind { power, bomb, bonus }
 
 enum CombatSound { shot, explosion, pickup, bomb, clear }
 
 class Pickup {
-  Pickup(double x, double y, this.kind) : position = Vector2(x, y);
+  Pickup(double x, double y, this.kind, {this.weapon})
+    : position = Vector2(x, y);
   final Vector2 position;
   final PickupKind kind;
+  final Weapon? weapon;
 }
 
 class Blast {
@@ -44,8 +46,8 @@ class BossPart {
 
 class StageBoss {
   StageBoss(int stage)
-    : core = BossPart(0, 140 + stage * 55),
-      wings = [BossPart(-68, 35 + stage * 14), BossPart(68, 35 + stage * 14)];
+    : core = BossPart(0, 160 + stage * 70),
+      wings = [BossPart(-68, 40 + stage * 18), BossPart(68, 40 + stage * 18)];
   final position = Vector2(180, -90);
   final BossPart core;
   final List<BossPart> wings;
@@ -165,12 +167,27 @@ class CombatState {
   final sounds = <CombatSound>{};
   Aircraft aircraft = Aircraft.swift;
   Weapon weapon = Weapon.pulse;
-  int unlockedStage = 0;
+  double bonusTime = 0;
+  double killWindow = 0;
+  int streak = 0;
   double laserTime = 0;
   double get laserWidth => 5 + power * 2.0;
-  List<Weapon> get availableWeapons => Weapon.values
-      .where((w) => w.requiredStage <= max(unlockedStage, stage - 1))
-      .toList();
+  List<double> get laserOffsets => switch (power) {
+    1 => const [0],
+    2 => const [-12, 12],
+    3 => const [-24, 0, 24],
+    _ => const [-36, -12, 12, 36],
+  };
+  double get enemyFireInterval =>
+      max(0.42, 1.85 - difficulty * 0.13 - (stage - 1) * 0.26);
+  double get enemyBulletSpeed => 155 + difficulty * 15.0 + (stage - 1) * 25;
+  double get bossFanInterval => boss?.exposed == true
+      ? max(
+          0.36,
+          (boss!.core.health < boss!.core.maxHealth / 2 ? 0.65 : 0.85) -
+              (stage - 1) * 0.13,
+        )
+      : 1.15 - (stage - 1) * 0.18;
   int power = 1;
   int bombs = 2;
   int stage = 1;
@@ -193,11 +210,7 @@ class CombatState {
   bool ended = false;
   int get difficulty => min(6, 1 + elapsed ~/ 25);
 
-  void reset({
-    Aircraft selected = Aircraft.swift,
-    int unlocked = 0,
-    Weapon selectedWeapon = Weapon.pulse,
-  }) {
+  void reset({Aircraft selected = Aircraft.swift}) {
     player.setValues(180, 530);
     bullets.clear();
     enemies.clear();
@@ -209,10 +222,9 @@ class CombatState {
     power = selected.startingPower;
     bombs = 2;
     stage = 1;
-    unlockedStage = unlocked.clamp(0, 3);
-    weapon = selectedWeapon.requiredStage <= unlockedStage
-        ? selectedWeapon
-        : Weapon.pulse;
+    weapon = Weapon.pulse;
+    bonusTime = killWindow = 0;
+    streak = 0;
     laserTime = 0;
     stageTime = bombFlash = 0;
     cue = kills = 0;
@@ -238,6 +250,15 @@ class CombatState {
   void _step(double dt) {
     elapsed += dt;
     stageTime += dt;
+    killWindow = max(0, killWindow - dt);
+    if (killWindow == 0) streak = 0;
+    if (bonusTime > 0) {
+      bonusTime = max(0, bonusTime - dt);
+      if (bonusTime == 0) {
+        weapon = Weapon.pulse;
+        fireTime = laserTime = 0;
+      }
+    }
     bombFlash = max(0, bombFlash - dt);
     for (final blast in blasts) {
       blast.age += dt;
@@ -250,7 +271,7 @@ class CombatState {
     for (final pickup in pickups) {
       pickup.position.y += dt * 65;
       if (_near(pickup.position, player, 30)) {
-        collect(pickup.kind);
+        collect(pickup.kind, bonus: pickup.weapon);
         pickup.position.y = 900;
       }
     }
@@ -303,12 +324,12 @@ class CombatState {
       enemy.fireTime += dt;
       if (enemy.position.y > 20 &&
           enemy.position.y < 480 &&
-          enemy.fireTime >= max(0.5, 1.9 - difficulty * 0.16 - stage * 0.08)) {
+          enemy.fireTime >= enemyFireInterval) {
         enemy.fireTime = 0;
         final dx = player.x - enemy.position.x;
         final dy = player.y - enemy.position.y;
         final length = sqrt(dx * dx + dy * dy);
-        final speed = 145 + difficulty * 17 + stage * 8;
+        final speed = enemyBulletSpeed;
         final vx = length > 0 ? dx / length * speed : 0.0;
         final vy = length > 0 ? dy / length * speed : speed.toDouble();
         final spread =
@@ -400,7 +421,12 @@ class CombatState {
     sounds.add(CombatSound.shot);
     if (weapon == Weapon.laser) return;
     if (weapon == Weapon.missiles) {
-      for (final offset in power >= 3 ? [-12.0, 12.0] : [0.0]) {
+      for (final offset in switch (power) {
+        1 => const [0.0],
+        2 => const [-10.0, 10.0],
+        3 => const [-18.0, 0.0, 18.0],
+        _ => const [-27.0, -9.0, 9.0, 27.0],
+      }) {
         bullets.spawn(
           player.x + offset,
           player.y - 25,
@@ -414,7 +440,12 @@ class CombatState {
       return;
     }
     if (weapon == Weapon.plasma) {
-      for (final vx in [-90.0, 0.0, 90.0]) {
+      for (final vx in switch (power) {
+        1 => const [0.0],
+        2 => const [-55.0, 55.0],
+        3 => const [-90.0, 0.0, 90.0],
+        _ => const [-140.0, -70.0, 0.0, 70.0, 140.0],
+      }) {
         bullets.spawn(
           player.x + vx / 8,
           player.y - 25,
@@ -452,18 +483,14 @@ class CombatState {
     }
   }
 
-  void cycleWeapon() {
-    if (ended || stageCleared) return;
-    final choices = availableWeapons;
-    weapon = choices[(choices.indexOf(weapon) + 1) % choices.length];
-    fireTime = laserTime = 0;
-  }
-
   void _laserDamage() {
     final damage = power >= 3 ? 2 : 1;
     for (final enemy in enemies) {
       if (enemy.health <= 0 || enemy.position.y >= player.y - 24) continue;
-      if ((enemy.position.x - player.x).abs() <= 18 + laserWidth / 2) {
+      if (laserOffsets.any(
+        (offset) =>
+            (enemy.position.x - player.x - offset).abs() <= 18 + laserWidth / 2,
+      )) {
         enemy.health = max(0, enemy.health - damage);
         if (enemy.health == 0) destroyEnemy(enemy);
       }
@@ -476,8 +503,11 @@ class CombatState {
     }
     for (final part in target.parts) {
       if (part.health > 0 &&
-          (target.position.x + part.offsetX - player.x).abs() <
-              22 + laserWidth / 2) {
+          laserOffsets.any(
+            (offset) =>
+                (target.position.x + part.offsetX - player.x - offset).abs() <
+                22 + laserWidth / 2,
+          )) {
         damageBossPart(part, damage);
       }
     }
@@ -519,9 +549,14 @@ class CombatState {
     bullet.velocity.y += (dy / length * 420 - bullet.velocity.y) * turn;
   }
 
-  void collect(PickupKind kind) {
+  void collect(PickupKind kind, {Weapon? bonus}) {
     sounds.add(CombatSound.pickup);
-    if (kind == PickupKind.power) {
+    if (kind == PickupKind.bonus) {
+      if (bonus == null || bonus == Weapon.pulse) return;
+      weapon = bonus;
+      bonusTime = 18;
+      fireTime = laserTime = 0;
+    } else if (kind == PickupKind.power) {
       if (power < 4) {
         power++;
       } else {
@@ -546,16 +581,31 @@ class CombatState {
     score += enemy.pattern == EnemyPattern.turret ? 250 : 100;
     explode(enemy.position.x, enemy.position.y);
     kills++;
+    streak++;
+    killWindow = 3;
     // Predictable supplies reward clearing formations rather than random luck.
     if (kills % 3 == 0 && pickups.length < 12) {
       pickups.add(
         Pickup(
-          enemy.position.x,
+          (enemy.position.x - 16).clamp(24, 336),
           enemy.position.y,
           kills % 9 == 0 ? PickupKind.bomb : PickupKind.power,
         ),
       );
     }
+    final combo = streak >= 4;
+    if ((combo || kills % 6 == 0 || random.nextDouble() < 0.12) &&
+        pickups.length < 12) {
+      pickups.add(
+        Pickup(
+          (enemy.position.x + 18).clamp(24, 336),
+          enemy.position.y,
+          PickupKind.bonus,
+          weapon: Weapon.values[1 + random.nextInt(3)],
+        ),
+      );
+    }
+    if (combo) streak = 0;
   }
 
   void clearEnemyBullets() {
@@ -629,12 +679,12 @@ class CombatState {
     target.radialTime += dt;
     target.aimedTime += dt;
     final enraged = target.core.health < target.core.maxHealth / 2;
-    if (target.radialTime >= (target.exposed ? (enraged ? 0.55 : 0.75) : 1.1)) {
+    if (target.radialTime >= bossFanInterval) {
       target.radialTime = 0;
       final count = 7 + stage * 2;
       for (var i = 0; i < count; i++) {
         final angle = pi * (0.12 + 0.76 * i / (count - 1));
-        final speed = 115 + stage * 16.0;
+        final speed = 125 + stage * 22.0 + (enraged ? 18 : 0);
         bullets.spawn(
           target.position.x,
           target.position.y + 28,
@@ -666,8 +716,11 @@ class CombatState {
   void nextStage() {
     if (!stageCleared || stage >= 3) return;
     stage++;
-    unlockedStage = max(unlockedStage, stage - 1);
-    weapon = Weapon.values[unlockedStage];
+    if (stage == 2) aircraft = Aircraft.striker;
+    power = max(power, aircraft.startingPower);
+    weapon = Weapon.pulse;
+    bonusTime = killWindow = 0;
+    streak = 0;
     laserTime = 0;
     stageTime = waveTime = fireTime = 0;
     cue = 0;
@@ -695,6 +748,8 @@ class CombatState {
     lives--;
     explode(player.x, player.y, large: true);
     power = max(1, power - 1);
+    weapon = Weapon.pulse;
+    bonusTime = 0;
     if (lives == 0) {
       ended = true;
       return;
@@ -709,7 +764,7 @@ class CombatState {
     wave++;
     final count = pattern == EnemyPattern.turret
         ? min(3, 1 + stage)
-        : min(6, 3 + difficulty);
+        : min(7, 3 + difficulty + stage - 1);
     final offset = random.nextDouble() * 16 - 8;
     for (var i = 0; i < count && enemies.length < 32; i++) {
       enemies.add(
@@ -717,8 +772,10 @@ class CombatState {
           50 + i * 260 / max(1, count - 1) + offset,
           -30 - i * 35,
           pattern,
-          100 + difficulty * 14.0 + stage * 8,
-          health: pattern == EnemyPattern.turret ? 6 + stage * 2 : 2 + stage,
+          100 + difficulty * 14.0 + stage * 16,
+          health: pattern == EnemyPattern.turret
+              ? 6 + stage * 3
+              : 2 + stage * 2,
         ),
       );
     }

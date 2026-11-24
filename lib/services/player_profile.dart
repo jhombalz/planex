@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../game/aircraft.dart';
-import '../game/weapon.dart';
 
 class PlayerProfile extends ChangeNotifier {
   PlayerProfile(this.preferences) {
@@ -15,9 +14,6 @@ class PlayerProfile extends ChangeNotifier {
   List<int> scores = [];
   int clearedStage = 0;
   Aircraft selected = Aircraft.swift;
-  Weapon selectedWeapon = Weapon.pulse;
-  List<Weapon> get weapons =>
-      Weapon.values.where((w) => w.requiredStage <= clearedStage).toList();
   bool muted = false;
   bool reducedMotion = false;
   bool leftHanded = false;
@@ -25,7 +21,7 @@ class PlayerProfile extends ChangeNotifier {
   bool saveFailed = false;
   Future<void> _pending = Future.value();
   int get highScore => scores.isEmpty ? 0 : scores.first;
-  bool get strikerUnlocked => highScore >= 5000 || clearedStage >= 1;
+  bool get strikerUnlocked => clearedStage >= 1;
 
   void _read() {
     try {
@@ -45,10 +41,6 @@ class PlayerProfile extends ChangeNotifier {
       selected = value['selected'] == Aircraft.striker.name && strikerUnlocked
           ? Aircraft.striker
           : Aircraft.swift;
-      selectedWeapon = weapons.firstWhere(
-        (w) => w.name == value['weapon'],
-        orElse: () => Weapon.pulse,
-      );
       muted = value['muted'] == true;
       reducedMotion = value['reducedMotion'] == true;
       leftHanded = value['leftHanded'] == true;
@@ -61,7 +53,6 @@ class PlayerProfile extends ChangeNotifier {
       scores = [];
       clearedStage = 0;
       selected = Aircraft.swift;
-      selectedWeapon = Weapon.pulse;
     }
   }
 
@@ -70,7 +61,6 @@ class PlayerProfile extends ChangeNotifier {
       'scores': scores,
       'clearedStage': clearedStage,
       'selected': selected.name,
-      'weapon': selectedWeapon.name,
       'muted': muted,
       'reducedMotion': reducedMotion,
       'leftHanded': leftHanded,
@@ -98,16 +88,8 @@ class PlayerProfile extends ChangeNotifier {
   }
 
   Future<void> recordStage(int stage) {
-    final before = clearedStage;
     clearedStage = stage.clamp(clearedStage, 3);
-    if (clearedStage > before) selectedWeapon = Weapon.values[clearedStage];
     return save();
-  }
-
-  Future<void> selectWeapon(Weapon weapon) async {
-    if (weapon.requiredStage > clearedStage) return;
-    selectedWeapon = weapon;
-    await save();
   }
 
   Future<void> select(Aircraft aircraft) async {

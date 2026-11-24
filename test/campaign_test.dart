@@ -76,8 +76,11 @@ void main() {
     for (var i = 0; i < 9; i++) {
       state.destroyEnemy(Enemy(100, 100, EnemyPattern.straight, 0));
     }
-    expect(state.pickups.length, 3);
-    expect(state.pickups.last.kind, PickupKind.bomb);
+    final supplies = state.pickups
+        .where((p) => p.kind != PickupKind.bonus)
+        .toList();
+    expect(supplies.length, 3);
+    expect(supplies.last.kind, PickupKind.bomb);
     state.damagePlayer();
     expect(state.power, 3);
   });

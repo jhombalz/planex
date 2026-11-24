@@ -69,6 +69,7 @@ class SpriteArt {
     double rotation = 0,
     bool stretch = false,
     double opacity = 1,
+    Color? tint,
   }) {
     final image = _image;
     final source = regions[sprite];
@@ -89,6 +90,9 @@ class SpriteArt {
       ),
       Paint()
         ..filterQuality = FilterQuality.low
+        ..colorFilter = tint == null
+            ? null
+            : ColorFilter.mode(tint.withValues(alpha: 0.55), BlendMode.srcATop)
         ..color = Color.fromRGBO(255, 255, 255, opacity),
     );
     canvas.restore();

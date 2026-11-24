@@ -16,6 +16,8 @@ void main() {
     await profile.select(Aircraft.striker);
     expect(profile.selected, Aircraft.swift);
     await profile.recordRun(6000, 0);
+    expect(profile.strikerUnlocked, isFalse);
+    await profile.recordStage(1);
     expect(profile.strikerUnlocked, isTrue);
     await profile.select(Aircraft.striker);
     profile.muted = true;

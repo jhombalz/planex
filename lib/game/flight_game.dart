@@ -25,6 +25,7 @@ class FlightGame extends FlameGame with DragCallbacks {
   bool active = false;
   int get score => combat.score;
   double scroll = 0;
+  double topInset = 0;
   int? _pointer;
   int _hudHash = 0;
   bool _recorded = false;
@@ -39,11 +40,7 @@ class FlightGame extends FlameGame with DragCallbacks {
 
   void startFlight() {
     if (!started || ended) {
-      combat.reset(
-        selected: profile.selected,
-        unlocked: profile.clearedStage,
-        selectedWeapon: profile.selectedWeapon,
-      );
+      combat.reset(selected: profile.selected);
       _recorded = false;
     }
     started = active = true;
@@ -109,13 +106,6 @@ class FlightGame extends FlameGame with DragCallbacks {
     return used;
   }
 
-  void cycleWeapon() {
-    if (!active) return;
-    combat.cycleWeapon();
-    unawaited(profile.selectWeapon(combat.weapon));
-    refreshHud();
-  }
-
   @override
   void onDragStart(DragStartEvent event) {
     super.onDragStart(event);
@@ -125,10 +115,14 @@ class FlightGame extends FlameGame with DragCallbacks {
   @override
   void onDragUpdate(DragUpdateEvent event) {
     if (!active || event.pointerId != _pointer) return;
-    final scale = min(size.x / 360, size.y / 640);
-    if (scale <= 0) return;
+    if (size.x <= 0 || size.y <= 0) return;
     combat.player.add(
-      event.localDelta / scale * profile.sensitivity * combat.aircraft.handling,
+      Vector2(
+            event.localDelta.x * 360 / size.x,
+            event.localDelta.y * 640 / size.y,
+          ) *
+          profile.sensitivity *
+          combat.aircraft.handling,
     );
     combat.player.x = combat.player.x.clamp(24, 336);
     combat.player.y = combat.player.y.clamp(80, 600);
@@ -157,6 +151,7 @@ class FlightGame extends FlameGame with DragCallbacks {
       combat.difficulty,
       profile.leftHanded,
       combat.weapon,
+      combat.bonusTime.ceil(),
     );
     if (hash != _hudHash) {
       _hudHash = hash;
@@ -226,10 +221,10 @@ class FlightGame extends FlameGame with DragCallbacks {
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-    final scale = min(size.x / 360, size.y / 640);
+    if (size.x <= 0 || size.y <= 0) return;
+    final inset = (topInset * 640 / size.y).clamp(0.0, 32.0);
     canvas.save();
-    canvas.translate((size.x - 360 * scale) / 2, (size.y - 640 * scale) / 2);
-    canvas.scale(scale);
+    canvas.scale(size.x / 360, size.y / 640);
     canvas.clipRect(const Rect.fromLTWH(0, 0, 360, 640));
     final background = const [
       Color(0xff092f45),
@@ -280,22 +275,26 @@ class FlightGame extends FlameGame with DragCallbacks {
       }
     }
     if (active && combat.weapon == Weapon.laser) {
-      final target = combat.boss;
-      final blocked =
-          target != null &&
-          !target.exposed &&
-          (combat.player.x - target.position.x).abs() < 30 &&
-          target.position.y < combat.player.y;
-      final top = blocked ? target.position.y + 30 : 66.0;
-      final start = Offset(combat.player.x, combat.player.y - 25);
-      final end = Offset(combat.player.x, top);
-      SpriteArt.draw(
-        canvas,
-        'laser',
-        (start + end) / 2,
-        Size(combat.laserWidth + 8, (start.dy - end.dy).abs()),
-        stretch: true,
-      );
+      for (final offset in combat.laserOffsets) {
+        final beamX = combat.player.x + offset;
+        final target = combat.boss;
+        final blocked =
+            target != null &&
+            !target.exposed &&
+            (beamX - target.position.x).abs() < 30 &&
+            target.position.y < combat.player.y;
+        final top = blocked ? target.position.y + 30 : 66.0;
+        final start = Offset(beamX, combat.player.y - 25);
+        final end = Offset(beamX, top);
+        SpriteArt.draw(
+          canvas,
+          'laser',
+          (start + end) / 2,
+          Size(combat.laserWidth + 8, (start.dy - end.dy).abs()),
+          stretch: true,
+          tint: Color(combat.aircraft.weaponColor),
+        );
+      }
     }
     for (final shot in combat.bullets.items) {
       if (!shot.active) continue;
@@ -308,14 +307,27 @@ class FlightGame extends FlameGame with DragCallbacks {
             point,
             const Size(16, 30),
             rotation: atan2(shot.velocity.x, -shot.velocity.y),
+            tint: Color(combat.aircraft.weaponColor),
           );
           continue;
         }
         if (shot.kind == Weapon.plasma) {
-          SpriteArt.draw(canvas, 'plasma', point, const Size(22, 22));
+          SpriteArt.draw(
+            canvas,
+            'plasma',
+            point,
+            const Size(22, 22),
+            tint: Color(combat.aircraft.weaponColor),
+          );
           continue;
         }
-        SpriteArt.draw(canvas, 'pulse', point, const Size(8, 22));
+        SpriteArt.draw(
+          canvas,
+          'pulse',
+          point,
+          const Size(8, 22),
+          tint: Color(combat.aircraft.weaponColor),
+        );
       } else {
         SpriteArt.draw(canvas, 'enemyBullet', point, const Size(12, 12));
       }
@@ -336,6 +348,24 @@ class FlightGame extends FlameGame with DragCallbacks {
     if (combat.boss != null) Artwork.boss(canvas, combat.boss!, combat.stage);
     for (final pickup in combat.pickups) {
       final point = Offset(pickup.position.x, pickup.position.y);
+      if (pickup.kind == PickupKind.bonus) {
+        canvas.drawCircle(point, 18, Paint()..color = const Color(0xdd253f6a));
+        canvas.drawCircle(
+          point,
+          18,
+          Paint()
+            ..color = const Color(0xffffd16a)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2,
+        );
+        SpriteArt.draw(
+          canvas,
+          SpriteArt.weaponSprite(pickup.weapon!),
+          point,
+          const Size(24, 28),
+        );
+        continue;
+      }
       canvas.drawCircle(
         point,
         14,
@@ -428,57 +458,67 @@ class FlightGame extends FlameGame with DragCallbacks {
       );
     }
     canvas.drawRect(
-      const Rect.fromLTWH(0, 0, 360, 66),
+      Rect.fromLTWH(0, 0, 360, 52 + inset),
       Paint()..color = const Color(0xcc061725),
     );
-    label(canvas, 'SCORE $score', const Offset(12, 10), size: 16);
+    label(canvas, 'SCORE $score', Offset(12, 8 + inset), size: 16);
     label(
       canvas,
       'LIVES ${combat.lives}   POWER ${combat.power}   STAGE ${combat.stage}',
-      const Offset(12, 36),
+      Offset(12, 30 + inset),
       size: 12,
     );
     if (combat.boss != null) {
       final boss = combat.boss!;
-      final totalHealth = boss.parts.fold(0, (value, p) => value + p.health);
-      final maxHealth = boss.parts.fold(0, (value, p) => value + p.maxHealth);
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          const Rect.fromLTWH(6, 68, 348, 68),
+          Rect.fromLTWH(6, 54 + inset, 348, 54),
           const Radius.circular(8),
         ),
         Paint()..color = const Color(0xee091522),
       );
       label(
         canvas,
-        'BOSS ${combat.stage}  ${boss.exposed ? (boss.core.health < boss.core.maxHealth / 2 ? 'ENRAGED' : 'CORE EXPOSED') : 'DESTROY TURRETS'}',
-        const Offset(14, 73),
-        size: 11,
+        'BOSS ${combat.stage}  ${boss.exposed ? (boss.core.health < boss.core.maxHealth / 2 ? 'ENRAGED' : 'CORE EXPOSED') : 'CORE SHIELDED'}',
+        Offset(14, 59 + inset),
+        size: 10,
         color: const Color(0xffffc06d),
       );
       Artwork.healthBar(
         canvas,
-        const Rect.fromLTWH(14, 91, 332, 8),
-        totalHealth,
-        maxHealth,
+        Rect.fromLTWH(14, 78 + inset, 332, 10),
+        boss.core.health,
+        boss.core.maxHealth,
+        shielded: !boss.exposed,
       );
-      final parts = [boss.wings.first, boss.core, boss.wings.last];
-      for (var i = 0; i < parts.length; i++) {
+      label(
+        canvas,
+        '${(boss.core.health * 100 / boss.core.maxHealth).ceil()}%',
+        Offset(306, 59 + inset),
+        size: 10,
+      );
+      final parts = boss.wings;
+      for (var i = 0; i < 2; i++) {
         final part = parts[i];
-        final x = 14 + i * 112.0;
-        final name = ['LEFT', 'CORE', 'RIGHT'][i];
+        final x = 14 + i * 178.0;
+        SpriteArt.draw(
+          canvas,
+          'bossTurret',
+          Offset(x + 5, 99 + inset),
+          const Size(10, 13),
+          opacity: part.health <= 0 ? 0.25 : 1,
+        );
         label(
           canvas,
-          '$name ${part.health <= 0 ? 'DOWN' : '${part.health}/${part.maxHealth}'}',
-          Offset(x, 105),
-          size: 9,
+          part.health <= 0 ? 'DESTROYED' : '${part.health}/${part.maxHealth}',
+          Offset(x + 18, 91 + inset),
+          size: 8,
         );
         Artwork.healthBar(
           canvas,
-          Rect.fromLTWH(x, 123, 102, 4),
+          Rect.fromLTWH(x + 65, 95 + inset, 88, 5),
           part.health,
           part.maxHealth,
-          shielded: i == 1 && !boss.exposed,
         );
       }
     } else if (combat.stageTime < 3) {

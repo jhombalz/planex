@@ -1,105 +1,91 @@
 # Planex
 
-An offline Android vertical arcade shooter built with Flutter and Flame.
+Offline fullscreen Android arcade shooter built with Flutter and Flame.
 
-## Download for Android
+## Download
 
-[**Download Android APK (v0.7.0)**](https://github.com/jhombalz/planex/releases/download/v0.7.0-sprites/planex-v0.7.0.apk)
+[**Download Android APK v0.8.0**](https://github.com/jhombalz/planex/releases/download/v0.8.0-bonus/planex-v0.8.0.apk)
 
-Open the link on your phone, download the APK, then open it to install. Allow
-installation from your browser if Android prompts. You can install this over the
-previous Planex test build from this repository.
+Open the link on your phone, download the APK, then install it. Allow installation
+from your browser when Android prompts. It installs over earlier Planex test builds
+and retains scores, cleared levels, plane choice and settings. Legacy weapon
+selections are ignored: every flight starts with Pulse.
 
-This is an optimized test build using development debug signing. Physical-device
-performance, audio interruptions and production signing are part of Phase 6.
+This optimized test build uses development signing. Physical-phone validation of
+immersive fullscreen, native audio, balancing and sustained performance is pending.
 
-Earlier builds: [v0.6.0](https://github.com/jhombalz/planex/releases/download/v0.6.0-combat/planex-v0.6.0.apk)
-· [Phases 3–5](https://github.com/jhombalz/planex/releases/download/v0.5.1-phase5/planex-v0.5.1.apk)
-· [Phase 2](https://github.com/jhombalz/planex/releases/download/v0.2.0-phase2/planex-phase2.apk)
-· [Phase 1](https://github.com/jhombalz/planex/releases/download/v0.1.0-phase1/planex-phase1-debug.apk)
-· [All releases](https://github.com/jhombalz/planex/releases)
+[All releases](https://github.com/jhombalz/planex/releases) ·
+[Previous v0.7.0 APK](https://github.com/jhombalz/planex/releases/download/v0.7.0-sprites/planex-v0.7.0.apk)
 
-## Play
+## Controls and bonuses
 
-- Drag anywhere in the playfield to steer. Weapons fire automatically.
-- Tap **BOMB** with a second finger to clear enemy bullets and damage enemies.
-  Bombs grant temporary protection; you start with two and can carry five.
-- Collect **P** for four power levels. Pulse upgrades from single to twin, spread
-  and five-way fire; other weapons gain beam width/damage or missile count/damage.
-  Collect **B** to replenish bombs. Maxed-out pickups award bonus points.
-- You have three lives. Respawning grants a two-second shield and costs one
-  power level. Clear a stage to receive another bomb.
-- Survive the authored 45-second approach, destroy both boss turrets, then attack
-  the exposed core. Clear Coral Approach, Iron Harbor and Storm Citadel to win.
-- Pause with the top-right button or Android Back. App interruptions pause the
-  flight; tap **Resume flight** to continue.
+- Drag anywhere to steer. Weapons fire automatically.
+- Flight buttons are icons: pause at the top right and bomb near the bottom.
+  The bomb badge shows your stock. Buttons retain tooltips/accessibility names.
+- Pulse is always the default. Collect a gold-ring weapon drop for **18 seconds**
+  of Laser, Homing Missiles or Plasma. Expiry, respawn and a new level restore Pulse.
+  The small circular weapon indicator shows remaining bonus time; it is not a switch.
+- Bonus drops have a 12% random kill chance, a guaranteed reward every six kills,
+  and a reward for four kills within a rolling three-second combo window.
+- Collect **P** for power, **B** for bombs. Power stays when a bonus expires.
+  Every third kill drops a supply; every ninth kill drops a bomb supply.
+- You have three lives. Respawn grants a two-second shield and removes one power
+  level. Bombs clear hostile bullets, damage enemies and grant temporary protection.
+- Pause also activates on Android Back or an app interruption. Resume explicitly
+  with the play icon. Menus use play, next-level, replay and home icon actions.
 
-## Weapons and harder combat
+### P upgrades
 
-| Unlock | Weapon | Behavior |
-| --- | --- | --- |
-| Available immediately | Pulse | Rapid multishot cannon |
-| Clear stage 1 | Laser | Continuous beam that pierces aligned enemies |
-| Clear stage 2 | Homing Missiles | Tracks enemies and exposed boss parts; heavy impact damage |
-| Clear stage 3 | Plasma | Heavy three-way energy cannon for future runs |
+| Power | Pulse shots | Laser beams | Homing missiles | Plasma shots |
+| --- | --- | --- | --- | --- |
+| 1 | 1 | 1 | 1 | 1 |
+| 2 | 2 | 2 | 2 | 2 |
+| 3 | 3 | 3 | 3 | 3 |
+| 4 | 5 | 4 | 4 | 5 |
 
-Unlocks are permanent. A newly unlocked weapon is equipped on the next stage.
-Choose a starting weapon in the hangar's **Weapons** section, or tap the weapon
-button opposite **BOMB** to cycle available weapons during flight.
+Laser drawing and damage use the same beam positions. Beams pierce aligned
+enemies; multiple overlapping beams do not multiply damage against a single
+target in one tick. Power also increases bonus damage/beam width. Maxed pickups
+award bonus points.
 
-Every enemy has a health bar. The boss panel shows total health, separate left/core/
-right health, and shield/exposed/enraged status. The boss moves below its panel so
-the UI does not obscure the settled fight. Bombs produce shockwave rings, sparks
-and staggered explosions even on an empty screen. Reduced motion disables shake,
-screen flash, moving shockwave rings and sparks.
+## Levels and aircraft
 
-Combat is harder than v0.5.1: faster enemies, more enemies per formation, stronger
-health scaling, extra late-stage waves, faster aimed shots and spread fire from
-turrets. Bosses have more health, fire faster, and enrage below half core health.
+Clear Coral Approach, Iron Harbor and Storm Citadel. Each level has an authored
+45-second approach followed by a multipart boss. Destroy both turrets to expose
+the core. The boss display emphasizes core health/percentage, shield/enraged state
+and two smaller turret indicators. Every regular enemy retains its own health bar.
 
-The hangar includes the five best scores, plane selection and settings. **Swift**
-is agile; **Striker** starts at power 2 and handles more slowly. Unlock Striker by
-earning 5,000 points in a run or clearing stage 1. Unlocks, completed/ended-run
-scores, plane and weapon choices, mute, reduced motion, button side and sensitivity save
-locally. In-progress flights are not restored after the app process closes.
+Each level raises enemy health, movement speed, projectile speed and fire rate,
+plus boss health and fan-fire frequency. Later levels also have more formations.
 
-## Sprite artwork
+Reaching **level 2** permanently unlocks the bronze **Striker**, which is equipped
+automatically for that level. It has amber projectile/laser effects and at least
+power 2. Swift uses cyan effects and agile handling. Choose unlocked aircraft by
+their icons in the hangar for future runs. Weapon bonuses are earned in combat,
+not unlocked or selected in the hangar.
 
-Player planes, enemy aircraft, three boss bombers, boss modules, weapon icons,
-missiles, plasma, laser beams and bullets now use actual transparent PNG sprites.
-They are bundled in one cached atlas for offline play; health bars and hitboxes
-remain independent of the artwork. Bosses settle below the health panel.
+## Artwork
 
-<img src="assets/images/arcade_atlas.png" width="460" alt="Original Planex aircraft and projectile sprite atlas">
+Aircraft, bosses, modules, bullets and weapons use bundled transparent PNG sprites
+from one cached atlas. Runtime tinting distinguishes aircraft weapon effects.
 
-The atlas was created with the built-in imagegen tool using the supplied arcade
-screenshot as a style reference. The source PNG remains unchanged. The exact
-[generation prompt](assets/ART_PROMPT.txt) and [sprite index](assets/images/arcade_atlas.json)
-are included. Procedural scenery and effects remain rendered in code; the
-soundtrack and effects are original synthesized audio. Gameplay requires no network.
+<img src="assets/images/arcade_atlas.png" width="460" alt="Planex aircraft and projectile sprites">
 
-## Development phases
+The atlas was created with built-in imagegen using the supplied arcade screenshot
+as a style reference. See the [prompt](assets/ART_PROMPT.txt),
+[sprite index](assets/images/arcade_atlas.json) and [asset provenance](assets/LICENSE.txt).
+Scenery and explosions are rendered in code; audio is synthesized and bundled.
 
-| Phase | Scope | Status |
-| --- | --- | --- |
-| 1 | Android foundation, movement, shooting, pause/restart | Implemented |
-| 2 | Lives, enemy bullets, wave patterns, bullet pooling | Implemented |
-| 3 | Four weapon levels, pickups, multitouch bombs, effects, audio/mute | Implemented |
-| 4 | Three authored stages, multipart bosses, shielded cores, stage-clear/victory | Implemented |
-| 5 | High scores, plane unlock/selection, original artwork, hangar/settings | Implemented |
-| 6 | Physical-device testing, balancing/performance, production signing and AAB | Pending |
+## Development status and verification
 
-Implemented phases still require physical-device acceptance testing. Current
-automated checks cover combat and campaign rules, saves and malformed-data
-recovery, multitouch steering/bombs, lifecycle pause and stage-clear/victory UI.
-Native audio playback and device performance are not verified by widget tests.
+Phases 1–5 are implemented. Phase 6 remains: device acceptance testing,
+balancing/performance, production signing and AAB preparation.
 
-Validation for v0.7.0: `flutter analyze` passed, all 38 automated tests passed,
-and the optimized Android APK built successfully.
-
-## Run and verify
-
-Install Flutter and the Android SDK, connect a phone with USB debugging, then:
+For v0.8.0, analysis and all **39 automated tests** passed. Tests cover combat,
+bonus collection/expiry, combo rewards, multibeam damage, P volley upgrades,
+legacy-save migration, level-2 unlocks, icon controls, viewport sizing and pause.
+Phone-sized rendering was inspected. Native system bars and audio still require
+physical-device verification.
 
 ```sh
 flutter pub get
@@ -109,10 +95,7 @@ flutter test
 flutter build apk --release
 ```
 
-The APK is generated at `build/app/outputs/flutter-apk/app-release.apk`.
-Release mode currently uses the development signing key; configure production
-signing before distribution beyond testing.
-
-Regenerate bundled audio with `dart tool/generate_audio.dart`. See
-`assets/LICENSE.txt` for asset provenance. `DEVELOPMENT_GUIDE.md` remains the
-original design reference; this roadmap records the Android implementation.
+APK: `build/app/outputs/flutter-apk/app-release.apk`.
+Audio generator: `dart tool/generate_audio.dart`.
+`DEVELOPMENT_GUIDE.md` is the original design reference; this README describes the
+current Android implementation. In-progress runs do not survive process exit.
