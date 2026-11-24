@@ -11,6 +11,7 @@ import '../services/player_profile.dart';
 import 'artwork.dart';
 import 'combat_state.dart';
 import 'weapon.dart';
+import 'sprite_art.dart';
 
 class FlightGame extends FlameGame with DragCallbacks {
   FlightGame(this.profile, {this.enableAudio = true});
@@ -30,6 +31,7 @@ class FlightGame extends FlameGame with DragCallbacks {
 
   @override
   Future<void> onLoad() async {
+    if (!SpriteArt.ready) await SpriteArt.load();
     overlays.add('menu');
     pauseEngine();
     if (enableAudio) unawaited(audio.initialize());
@@ -287,26 +289,12 @@ class FlightGame extends FlameGame with DragCallbacks {
       final top = blocked ? target.position.y + 30 : 66.0;
       final start = Offset(combat.player.x, combat.player.y - 25);
       final end = Offset(combat.player.x, top);
-      canvas.drawLine(
-        start,
-        end,
-        Paint()
-          ..color = const Color(0x5545dcff)
-          ..strokeWidth = combat.laserWidth + 10,
-      );
-      canvas.drawLine(
-        start,
-        end,
-        Paint()
-          ..color = const Color(0xff65e7ff)
-          ..strokeWidth = combat.laserWidth,
-      );
-      canvas.drawLine(
-        start,
-        end,
-        Paint()
-          ..color = const Color(0xffe6ffff)
-          ..strokeWidth = 3,
+      SpriteArt.draw(
+        canvas,
+        'laser',
+        (start + end) / 2,
+        Size(combat.laserWidth + 8, (start.dy - end.dy).abs()),
+        stretch: true,
       );
     }
     for (final shot in combat.bullets.items) {
@@ -314,47 +302,22 @@ class FlightGame extends FlameGame with DragCallbacks {
       final point = Offset(shot.position.x, shot.position.y);
       if (shot.owner == BulletOwner.player) {
         if (shot.kind == Weapon.missiles) {
-          canvas.save();
-          canvas.translate(point.dx, point.dy);
-          canvas.rotate(atan2(shot.velocity.x, -shot.velocity.y));
-          canvas.drawOval(
-            const Rect.fromLTWH(-3, 5, 6, 15),
-            Paint()..color = const Color(0xffff9c40),
+          SpriteArt.draw(
+            canvas,
+            'missile',
+            point,
+            const Size(16, 30),
+            rotation: atan2(shot.velocity.x, -shot.velocity.y),
           );
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(
-              const Rect.fromLTWH(-4, -10, 8, 19),
-              const Radius.circular(4),
-            ),
-            Paint()..color = const Color(0xffeff2f4),
-          );
-          canvas.drawRect(
-            const Rect.fromLTWH(-6, 4, 12, 4),
-            Paint()..color = const Color(0xffed727d),
-          );
-          canvas.restore();
           continue;
         }
         if (shot.kind == Weapon.plasma) {
-          canvas.drawCircle(
-            point,
-            11,
-            Paint()..color = const Color(0x6655ffaa),
-          );
-          canvas.drawCircle(point, 7, Paint()..color = const Color(0xff73ffbc));
-          canvas.drawCircle(point, 3, Paint()..color = const Color(0xffeffff5));
+          SpriteArt.draw(canvas, 'plasma', point, const Size(22, 22));
           continue;
         }
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            Rect.fromCenter(center: point, width: 4, height: 16),
-            const Radius.circular(2),
-          ),
-          Paint()..color = const Color(0xff9dffe6),
-        );
+        SpriteArt.draw(canvas, 'pulse', point, const Size(8, 22));
       } else {
-        canvas.drawCircle(point, 5, Paint()..color = const Color(0xffffb74d));
-        canvas.drawCircle(point, 2, Paint()..color = const Color(0xfffff3ba));
+        SpriteArt.draw(canvas, 'enemyBullet', point, const Size(12, 12));
       }
     }
     for (final enemy in combat.enemies) {
@@ -370,7 +333,7 @@ class FlightGame extends FlameGame with DragCallbacks {
         enemy.maxHealth,
       );
     }
-    if (combat.boss != null) Artwork.boss(canvas, combat.boss!);
+    if (combat.boss != null) Artwork.boss(canvas, combat.boss!, combat.stage);
     for (final pickup in combat.pickups) {
       final point = Offset(pickup.position.x, pickup.position.y);
       canvas.drawCircle(

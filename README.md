@@ -4,7 +4,7 @@ An offline Android vertical arcade shooter built with Flutter and Flame.
 
 ## Download for Android
 
-[**Download Android APK (v0.6.0)**](https://github.com/jhombalz/planex/releases/download/v0.6.0-combat/planex-v0.6.0.apk)
+[**Download Android APK (v0.7.0)**](https://github.com/jhombalz/planex/releases/download/v0.7.0-sprites/planex-v0.7.0.apk)
 
 Open the link on your phone, download the APK, then open it to install. Allow
 installation from your browser if Android prompts. You can install this over the
@@ -13,7 +13,8 @@ previous Planex test build from this repository.
 This is an optimized test build using development debug signing. Physical-device
 performance, audio interruptions and production signing are part of Phase 6.
 
-Earlier builds: [Phases 3–5](https://github.com/jhombalz/planex/releases/download/v0.5.1-phase5/planex-v0.5.1.apk)
+Earlier builds: [v0.6.0](https://github.com/jhombalz/planex/releases/download/v0.6.0-combat/planex-v0.6.0.apk)
+· [Phases 3–5](https://github.com/jhombalz/planex/releases/download/v0.5.1-phase5/planex-v0.5.1.apk)
 · [Phase 2](https://github.com/jhombalz/planex/releases/download/v0.2.0-phase2/planex-phase2.apk)
 · [Phase 1](https://github.com/jhombalz/planex/releases/download/v0.1.0-phase1/planex-phase1-debug.apk)
 · [All releases](https://github.com/jhombalz/planex/releases)
@@ -62,8 +63,20 @@ earning 5,000 points in a run or clearing stage 1. Unlocks, completed/ended-run
 scores, plane and weapon choices, mute, reduced motion, button side and sensitivity save
 locally. In-progress flights are not restored after the app process closes.
 
-All artwork is original vector art rendered in code. The bundled soundtrack and
-effects are original synthesized audio. Gameplay requires no network connection.
+## Sprite artwork
+
+Player planes, enemy aircraft, three boss bombers, boss modules, weapon icons,
+missiles, plasma, laser beams and bullets now use actual transparent PNG sprites.
+They are bundled in one cached atlas for offline play; health bars and hitboxes
+remain independent of the artwork. Bosses settle below the health panel.
+
+<img src="assets/images/arcade_atlas.png" width="460" alt="Original Planex aircraft and projectile sprite atlas">
+
+The atlas was created with the built-in imagegen tool using the supplied arcade
+screenshot as a style reference. The source PNG remains unchanged. The exact
+[generation prompt](assets/ART_PROMPT.txt) and [sprite index](assets/images/arcade_atlas.json)
+are included. Procedural scenery and effects remain rendered in code; the
+soundtrack and effects are original synthesized audio. Gameplay requires no network.
 
 ## Development phases
 
@@ -81,7 +94,7 @@ automated checks cover combat and campaign rules, saves and malformed-data
 recovery, multitouch steering/bombs, lifecycle pause and stage-clear/victory UI.
 Native audio playback and device performance are not verified by widget tests.
 
-Validation for v0.6.0: `flutter analyze` passed, all 35 automated tests passed,
+Validation for v0.7.0: `flutter analyze` passed, all 38 automated tests passed,
 and the optimized Android APK built successfully.
 
 ## Run and verify

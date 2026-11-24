@@ -1,5 +1,11 @@
 Planex original assets
 
-The geometric aircraft, environments, boss artwork and synthesized audio were
-created for this repository. Audio is reproducible with tool/generate_audio.dart.
-No Sonic Wings/Aero Fighters artwork, music or other game assets are included.
+The transparent aircraft/projectile atlas was generated for this repository with
+OpenAI's built-in image-generation tool. The user's screenshot was a style
+reference; no aircraft sprites were extracted from it. See ART_PROMPT.txt for the
+generation prompt. The generated PNG is retained unchanged; its JSON file indexes
+the alpha bounds of individual sprites for runtime rendering.
+
+The procedural environments, UI/effects and synthesized audio were created for
+this repository. Audio is reproducible with tool/generate_audio.dart.
+No third-party arcade-game sprite sheets or soundtrack files are bundled.

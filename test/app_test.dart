@@ -6,9 +6,12 @@ import 'package:planex/main.dart';
 import 'package:planex/game/flight_game.dart';
 import 'package:planex/game/combat_state.dart';
 import 'package:planex/game/weapon.dart';
+import 'package:planex/game/sprite_art.dart';
 import 'package:planex/services/player_profile.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(SpriteArt.load);
   testWidgets(
     'unlocked weapon button cycles during flight and persists selection',
     (tester) async {

@@ -9,6 +9,7 @@ import 'game/aircraft.dart';
 import 'game/artwork.dart';
 import 'game/flight_game.dart';
 import 'game/weapon.dart';
+import 'game/sprite_art.dart';
 import 'services/player_profile.dart';
 
 Future<void> main() async {
@@ -88,7 +89,10 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
                           onPressed: game.combat.availableWeapons.length > 1
                               ? game.cycleWeapon
                               : null,
-                          icon: const Icon(Icons.swap_horiz),
+                          icon: SpriteIcon(
+                            SpriteArt.weaponSprite(game.combat.weapon),
+                            size: 24,
+                          ),
                           label: Text(game.combat.weapon.label),
                         ),
                       ),
@@ -115,7 +119,7 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
                           onPressed: game.combat.bombs > 0
                               ? game.useBomb
                               : null,
-                          icon: const Icon(Icons.blur_on),
+                          icon: const SpriteIcon('bomb', size: 28),
                           label: Text('BOMB ${game.combat.bombs}'),
                         ),
                       ),
@@ -259,6 +263,7 @@ class Hangar extends StatelessWidget {
                                 plane == Aircraft.striker &&
                                 !profile.strikerUnlocked;
                             return ChoiceChip(
+                              avatar: SpriteIcon(plane.name, size: 22),
                               label: Text(
                                 locked ? '${plane.label} 🔒' : plane.label,
                               ),
@@ -323,6 +328,10 @@ class Hangar extends StatelessWidget {
                             children: Weapon.values
                                 .map(
                                   (weapon) => ChoiceChip(
+                                    avatar: SpriteIcon(
+                                      SpriteArt.weaponSprite(weapon),
+                                      size: 22,
+                                    ),
                                     label: Text(weapon.label),
                                     selected: profile.selectedWeapon == weapon,
                                     onSelected:

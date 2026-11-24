@@ -624,7 +624,7 @@ class CombatState {
     if (target == null) return;
     target.age += dt;
     target.position.x = 180 + sin(target.age * 0.65) * 55;
-    target.position.y = min(175, target.position.y + dt * 65);
+    target.position.y = min(215, target.position.y + dt * 65);
     if (target.position.y < 90) return;
     target.radialTime += dt;
     target.aimedTime += dt;
