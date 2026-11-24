@@ -50,11 +50,12 @@ class FlightGame extends FlameGame with DragCallbacks {
   }
 
   void pauseFlight() {
+    // Debrief/menu sounds must stop on app interruptions too.
+    audio.silence();
+    _pointer = null;
     if (!active) return;
     active = false;
-    _pointer = null;
     pauseEngine();
-    audio.silence();
     overlays.remove('hud');
     overlays.add('menu');
   }

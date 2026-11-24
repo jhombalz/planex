@@ -4,7 +4,7 @@ An offline Android vertical arcade shooter built with Flutter and Flame.
 
 ## Download for Android
 
-[**Download Phases 3–5 APK (v0.5.0)**](https://github.com/jhombalz/planex/releases/download/v0.5.0-phase5/planex-v0.5.0.apk)
+[**Download Phases 3–5 APK (v0.5.1)**](https://github.com/jhombalz/planex/releases/download/v0.5.1-phase5/planex-v0.5.1.apk)
 
 Open the link on your phone, download the APK, then open it to install. Allow
 installation from your browser if Android prompts. You can install this over the
@@ -56,7 +56,7 @@ automated checks cover combat and campaign rules, saves and malformed-data
 recovery, multitouch steering/bombs, lifecycle pause and stage-clear/victory UI.
 Native audio playback and device performance are not verified by widget tests.
 
-Validation for v0.5.0: `flutter analyze` passed, all 24 automated tests passed,
+Validation for v0.5.1: `flutter analyze` passed, all 24 automated tests passed,
 and the optimized Android APK built successfully.
 
 ## Run and verify
