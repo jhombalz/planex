@@ -162,17 +162,17 @@ void main() {
     },
   );
   test(
-    'entering level 2 equips bronze plane and Pulse; unlock saves',
+    'entering level 2 keeps chosen plane and restores Pulse; unlock saves',
     () async {
       final state = CombatState()
         ..stageCleared = true
         ..weapon = Weapon.laser
         ..bonusTime = 10;
       state.nextStage();
-      expect(state.aircraft, Aircraft.striker);
+      expect(state.aircraft, Aircraft.swift);
       expect(state.weapon, Weapon.pulse);
       expect(state.bonusTime, 0);
-      expect(state.power, greaterThanOrEqualTo(2));
+      expect(state.power, 1);
       expect(Aircraft.striker.weaponColor, isNot(Aircraft.swift.weaponColor));
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();

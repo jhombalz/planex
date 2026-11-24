@@ -184,6 +184,10 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
                                 Text(
                                   game.combat.practice
                                       ? 'PRACTICE COMPLETE'
+                                      : game.combat.bossRush
+                                      ? game.combat.victory
+                                            ? 'BOSS RUSH COMPLETE'
+                                            : 'BOSS ${game.combat.stage} DEFEATED'
                                       : game.combat.victory
                                       ? 'CAMPAIGN COMPLETE'
                                       : 'LEVEL ${game.combat.stage} CLEAR',
@@ -206,8 +210,10 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
                                     fontSize: 12,
                                   ),
                                 ),
-                                if (!game.combat.practice &&
-                                    game.combat.stage == 1) ...[
+                                StageRewards(game),
+                                if (game.earnedRewards.contains(
+                                  'STRIKER UNLOCKED',
+                                )) ...[
                                   const AircraftPreview(Aircraft.striker),
                                   const Text(
                                     'STRIKER UNLOCKED',
@@ -217,12 +223,13 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
                                     ),
                                   ),
                                   const Text(
-                                    'Bronze fighter · amber weapon effects\nEquipped automatically for level 2',
+                                    'Bronze fighter · stronger bombs\nSelect it in the hangar for your next run',
                                     textAlign: TextAlign.center,
                                   ),
                                 ],
-                                if (!game.combat.practice &&
-                                    game.combat.stage == 3) ...[
+                                if (game.earnedRewards.contains(
+                                  'WRAITH UNLOCKED',
+                                )) ...[
                                   const AircraftPreview(Aircraft.wraith),
                                   const Text(
                                     'WRAITH UNLOCKED',

@@ -19,6 +19,7 @@ class PlayerProfile extends ChangeNotifier {
   };
   final Map<String, int> medals = {};
   final Map<String, int> completions = {};
+  final Map<String, int> rushBests = {};
   final Set<String> achievements = {};
   final Set<String> collectedWeapons = {};
   int clearedStage = 0;
@@ -36,6 +37,7 @@ class PlayerProfile extends ChangeNotifier {
       mode == Challenge.normal ? scores : modeScores[mode]!;
   int get highScore => visibleScores.isEmpty ? 0 : visibleScores.first;
   bool get strikerUnlocked => clearedStage >= 1;
+  bool get bossRushUnlocked => clearedStage >= campaign.length;
   bool unlocked(Aircraft plane) => switch (plane) {
     Aircraft.swift => true,
     Aircraft.striker => clearedStage >= 1,
@@ -85,6 +87,14 @@ class PlayerProfile extends ChangeNotifier {
           if (n is int && n >= 0) completions[m.name] = n.clamp(0, 1000000);
         }
       }
+      if (v['rushBests'] is Map) {
+        for (final m in Challenge.values) {
+          final score = (v['rushBests'] as Map)[m.name];
+          if (score is int && score >= 0) {
+            rushBests[m.name] = score.clamp(0, 1000000000);
+          }
+        }
+      }
       if (v['achievements'] is List) {
         achievements.addAll(
           (v['achievements'] as List).whereType<String>().where(
@@ -95,7 +105,7 @@ class PlayerProfile extends ChangeNotifier {
       if (v['collectedWeapons'] is List) {
         collectedWeapons.addAll(
           (v['collectedWeapons'] as List).whereType<String>().where(
-            (w) => ['laser', 'missiles', 'plasma'].contains(w),
+            (w) => ['laser', 'missiles', 'plasma', 'spread'].contains(w),
           ),
         );
       }
@@ -126,6 +136,7 @@ class PlayerProfile extends ChangeNotifier {
       'mode': mode.name,
       'medals': medals,
       'completions': completions,
+      'rushBests': rushBests,
       'achievements': achievements.toList(),
       'collectedWeapons': collectedWeapons.toList(),
       'checkpoint': checkpoint?.toJson(),
@@ -165,7 +176,10 @@ class PlayerProfile extends ChangeNotifier {
     );
     earn(Achievement.noBombs, stage >= campaign.length && stats.bombs == 0);
     collectedWeapons.addAll(stats.weapons);
-    earn(Achievement.arsenal, collectedWeapons.length >= 3);
+    earn(
+      Achievement.arsenal,
+      ['laser', 'missiles', 'plasma'].every(collectedWeapons.contains),
+    );
   }
 
   Future<void> recordRun(
@@ -218,6 +232,12 @@ class PlayerProfile extends ChangeNotifier {
 
   Future<void> clearCheckpoint() {
     checkpoint = null;
+    return save();
+  }
+
+  Future<void> recordBossRush(int score, Challenge challenge) {
+    final best = rushBests[challenge.name] ?? 0;
+    rushBests[challenge.name] = score.clamp(best, 1000000000);
     return save();
   }
 

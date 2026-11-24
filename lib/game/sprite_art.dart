@@ -114,6 +114,7 @@ class SpriteArt {
     Weapon.laser => 'laser',
     Weapon.missiles => 'missile',
     Weapon.plasma => 'plasma',
+    Weapon.spread => 'spread',
   };
 
   static void draw(
@@ -128,6 +129,26 @@ class SpriteArt {
     double tintStrength = 0.55,
     double yScale = 1,
   }) {
+    if (sprite == 'spread') {
+      canvas.save();
+      canvas.translate(center.dx, center.dy);
+      canvas.scale(1, yScale);
+      canvas.rotate(rotation);
+      for (final side in [-1.0, 0.0, 1.0]) {
+        draw(
+          canvas,
+          'pulse',
+          Offset(side * size.width * 0.25, 0),
+          Size(size.width * 0.3, size.height * 0.85),
+          rotation: side * 0.45,
+          tint: const Color(0xffa4ff68),
+          tintStrength: 0.85,
+          opacity: opacity,
+        );
+      }
+      canvas.restore();
+      return;
+    }
     final image = _sheets[sprite] ?? _image;
     final source = regions[sprite];
     if (image == null || source == null) return;

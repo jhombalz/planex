@@ -82,7 +82,7 @@ class RunStats {
     if (raw['weapons'] is List) {
       s.weapons.addAll(
         (raw['weapons'] as List).whereType<String>().where(
-          (v) => ['laser', 'missiles', 'plasma'].contains(v),
+          (v) => ['laser', 'missiles', 'plasma', 'spread'].contains(v),
         ),
       );
     }

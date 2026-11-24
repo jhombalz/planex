@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import '../services/game_audio.dart';
 import '../services/player_profile.dart';
 import 'artwork.dart';
+import 'aircraft.dart';
 import 'combat_state.dart';
 import 'weapon.dart';
 import 'sprite_art.dart';
@@ -33,6 +34,7 @@ class FlightGame extends FlameGame with DragCallbacks {
   int? _pointer;
   int _hudHash = 0;
   bool _recorded = false;
+  final List<String> earnedRewards = [];
 
   @override
   Future<void> onLoad() async {
@@ -79,6 +81,10 @@ class FlightGame extends FlameGame with DragCallbacks {
     if (_recorded) return;
     _recorded = true;
     if (combat.practice) return;
+    if (combat.bossRush) {
+      unawaited(profile.recordBossRush(score, combat.mode));
+      return;
+    }
     unawaited(
       profile.recordRun(
         score,
@@ -104,12 +110,15 @@ class FlightGame extends FlameGame with DragCallbacks {
   }
 
   void nextStage() {
+    if (!combat.stageCleared || combat.victory && !combat.practice) return;
     if (combat.practice) {
       startPractice(combat.stage);
       return;
     }
     combat.nextStage();
-    unawaited(profile.saveCheckpoint(combat.checkpoint()));
+    if (combat.rankedCampaign) {
+      unawaited(profile.saveCheckpoint(combat.checkpoint()));
+    }
     startFlight();
   }
 
@@ -127,6 +136,22 @@ class FlightGame extends FlameGame with DragCallbacks {
     started = true;
     startFlight();
     combat.announce('PRACTICE · NO RECORDS');
+  }
+
+  void startBossRush() {
+    if (!profile.bossRushUnlocked) return;
+    combat.reset(
+      selected: profile.selected,
+      challenge: profile.mode,
+      isBossRush: true,
+    );
+    combat.power = 4;
+    combat.stats.maxPower = 4;
+    _recorded = false;
+    earnedRewards.clear();
+    started = true;
+    startFlight();
+    combat.announce('BOSS RUSH');
   }
 
   void continueCheckpoint() {
@@ -227,7 +252,13 @@ class FlightGame extends FlameGame with DragCallbacks {
       audio.setPlaying(false, mute: profile.muted);
       overlays.remove('hud');
       overlays.add('debrief');
-      if (!combat.practice) {
+      earnedRewards.clear();
+      if (combat.bossRush) {
+        if (combat.victory) _recordRun();
+      } else if (!combat.practice) {
+        final previous = Set<String>.of(profile.achievements);
+        final planes = Aircraft.values.where(profile.unlocked).toSet();
+        final rushUnlocked = profile.bossRushUnlocked;
         unawaited(
           profile.recordStage(
             combat.stage,
@@ -236,6 +267,23 @@ class FlightGame extends FlameGame with DragCallbacks {
             medal: combat.medal,
           ),
         );
+        earnedRewards.addAll(
+          Achievement.values
+              .where(
+                (a) =>
+                    !previous.contains(a.name) &&
+                    profile.achievements.contains(a.name),
+              )
+              .map((a) => a.title),
+        );
+        earnedRewards.addAll(
+          Aircraft.values
+              .where((p) => !planes.contains(p) && profile.unlocked(p))
+              .map((p) => '${p.label} UNLOCKED'),
+        );
+        if (!rushUnlocked && profile.bossRushUnlocked) {
+          earnedRewards.add('BOSS RUSH UNLOCKED');
+        }
         if (combat.victory) {
           _recordRun();
           unawaited(profile.clearCheckpoint());
@@ -364,6 +412,21 @@ class FlightGame extends FlameGame with DragCallbacks {
       if (!shot.active) continue;
       final point = Offset(shot.position.x, shot.position.y);
       if (shot.owner == BulletOwner.player) {
+        if (shot.kind == Weapon.spread) {
+          SpriteArt.draw(
+            canvas,
+            'pulse',
+            point,
+            const Size(12, 18),
+            rotation: atan2(
+              shot.velocity.x * size.x / 360,
+              -shot.velocity.y * size.y / 640,
+            ),
+            tint: const Color(0xffa4ff68),
+            yScale: spriteYScale,
+          );
+          continue;
+        }
         if (shot.kind == Weapon.missiles) {
           SpriteArt.draw(
             canvas,
@@ -656,7 +719,11 @@ class FlightGame extends FlameGame with DragCallbacks {
     label(canvas, 'SCORE $score', Offset(12, 8 + inset), size: 16);
     label(
       canvas,
-      'LIVES ${combat.lives}  P${combat.power}  L${combat.stage}  ${combat.practice ? 'PRACTICE' : combat.mode.label}',
+      'LIVES ${combat.lives}  P${combat.power}  L${combat.stage}  ${combat.practice
+          ? 'PRACTICE'
+          : combat.bossRush
+          ? 'RUSH'
+          : combat.mode.label}',
       Offset(12, 30 + inset),
       size: 12,
     );

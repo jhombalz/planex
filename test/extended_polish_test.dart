@@ -34,7 +34,7 @@ void main() {
           ),
           isEmpty,
         );
-        step(state, 0.25);
+        step(state, 0.36);
         final shots = state.bullets.items
             .where((b) => b.active && b.owner == BulletOwner.enemy)
             .toList();

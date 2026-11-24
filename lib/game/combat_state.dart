@@ -274,6 +274,8 @@ class CombatState {
   bool get bossApproaching => boss == null && stageTime >= 42 && stageTime < 45;
   Aircraft aircraft = Aircraft.swift;
   Weapon weapon = Weapon.pulse;
+  bool bossRush = false;
+  bool get rankedCampaign => !practice && !bossRush;
   double bonusTime = 0;
   double killWindow = 0;
   int streak = 0;
@@ -292,11 +294,11 @@ class CombatState {
   double get bossFanInterval =>
       (boss?.exposed == true
           ? max(
-              0.36,
+              0.62,
               (boss!.core.health < boss!.core.maxHealth / 2 ? 0.65 : 0.85) -
                   (stage - 1) * 0.13,
             )
-          : max(0.45, 1.15 - (stage - 1) * 0.14)) *
+          : max(0.72, 1.15 - (stage - 1) * 0.1)) *
       mode.fire *
       (boss?.phase == 2 ? 0.9 : 1);
   int power = 1;
@@ -327,6 +329,7 @@ class CombatState {
     Challenge challenge = Challenge.normal,
     int startStage = 1,
     bool isPractice = false,
+    bool isBossRush = false,
   }) {
     player.setValues(180, 530);
     bullets.clear();
@@ -340,6 +343,7 @@ class CombatState {
     aircraft = selected;
     mode = challenge;
     practice = isPractice;
+    bossRush = isBossRush;
     stats = RunStats()..maxPower = selected.startingPower;
     minibossSpawned = false;
     stageDamage = stageShots = stageHits = 0;
@@ -351,6 +355,7 @@ class CombatState {
     streak = 0;
     laserTime = 0;
     stageTime = bombFlash = 0;
+    if (bossRush) stageTime = 42;
     cue = kills = 0;
     boss = null;
     stageCleared = false;
@@ -454,6 +459,7 @@ class CombatState {
         (switch (weapon) {
           Weapon.missiles => 0.45,
           Weapon.plasma => 0.3,
+          Weapon.spread => 0.28,
           _ => 0.15,
         }) *
         aircraft.fireMultiplier;
@@ -462,7 +468,7 @@ class CombatState {
       shoot();
     }
     final schedule = stageWaves[stage - 1];
-    if (!minibossSpawned && stageTime >= 22 && boss == null) {
+    if (!bossRush && !minibossSpawned && stageTime >= 22 && boss == null) {
       minibossSpawned = true;
       enemies.add(
         Enemy(
@@ -476,6 +482,7 @@ class CombatState {
       announce('ACE INBOUND');
     }
     if (boss == null &&
+        !bossRush &&
         cue < schedule.length &&
         stageTime >= schedule[cue].$1) {
       spawnWave(pattern: schedule[cue].$2);
@@ -483,6 +490,16 @@ class CombatState {
     }
     if (boss == null && stageTime >= 45) {
       boss = StageBoss(stage, healthScale: mode.health);
+      if (bossRush) {
+        pickups.add(
+          Pickup(
+            player.x,
+            player.y - 100,
+            PickupKind.bonus,
+            weapon: Weapon.values[1 + (stage - 1) % (Weapon.values.length - 1)],
+          ),
+        );
+      }
       enemies.clear();
       clearEnemyBullets();
     }
@@ -628,8 +645,24 @@ class CombatState {
       Weapon.laser => CombatSound.laser,
       Weapon.missiles => CombatSound.missile,
       Weapon.plasma => CombatSound.plasma,
+      Weapon.spread => CombatSound.shot,
     });
     if (weapon == Weapon.laser) return;
+    if (weapon == Weapon.spread) {
+      final count = 3 + power * 2;
+      for (var i = 0; i < count; i++) {
+        final angle = -pi / 2 + (i / (count - 1) - 0.5) * 1.05;
+        _playerShot(
+          player.x,
+          player.y - 25,
+          cos(angle) * 540,
+          sin(angle) * 540,
+          kind: Weapon.spread,
+          damage: 1,
+        );
+      }
+      return;
+    }
     if (weapon == Weapon.missiles) {
       for (final offset in switch (power) {
         1 => const [0.0],
@@ -857,7 +890,7 @@ class CombatState {
           (enemy.position.x + 18).clamp(24, 336),
           enemy.position.y,
           PickupKind.bonus,
-          weapon: Weapon.values[1 + random.nextInt(3)],
+          weapon: Weapon.values[1 + random.nextInt(Weapon.values.length - 1)],
         ),
       );
     }
@@ -985,8 +1018,8 @@ class CombatState {
           );
         }
       }
-    } else if (target.radialTime >= bossFanInterval - 0.22) {
-      target.fanCharge = 0.22;
+    } else if (target.radialTime >= bossFanInterval - 0.35) {
+      target.fanCharge = 0.35;
     }
     if (target.aimCharge > 0) {
       target.aimCharge = max(0, target.aimCharge - dt);
@@ -1057,14 +1090,17 @@ class CombatState {
   void nextStage() {
     if (!stageCleared || stage >= campaign.length) return;
     stage++;
-    if (stage == 2) aircraft = Aircraft.striker;
-    if (stage == 4) aircraft = Aircraft.wraith;
     power = max(power, aircraft.startingPower);
     weapon = Weapon.pulse;
     bonusTime = killWindow = 0;
     streak = 0;
     laserTime = 0;
     stageTime = waveTime = fireTime = 0;
+    if (bossRush) {
+      stageTime = 42;
+      power = 4;
+      lives = min(mode == Challenge.easy ? 5 : 3, lives + 1);
+    }
     minibossSpawned = false;
     stageDamage = 0;
     stageShots = stats.shots;

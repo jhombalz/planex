@@ -18,6 +18,38 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(SpriteArt.load);
   testWidgets(
+    'boss rush is gated and its results leave campaign records intact',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final profile = PlayerProfile(await SharedPreferences.getInstance())
+        ..tutorialSeen = true;
+      await tester.pumpWidget(PlanexApp(profile: profile, enableAudio: false));
+      await tester.pumpAndSettle();
+      final game = currentGame(tester);
+      game.startBossRush();
+      expect(game.active, isFalse);
+      await profile.recordStage(6);
+      await profile.saveCheckpoint(CombatState().checkpoint());
+      await tester.pumpAndSettle();
+      final cp = profile.checkpoint!.toJson();
+      final achievements = Set<String>.of(profile.achievements);
+      game.startBossRush();
+      expect(game.active && game.combat.bossRush, isTrue);
+      game.combat.stage = 6;
+      game.combat.score = 5000;
+      game.combat.stageCleared = true;
+      game.update(0.01);
+      await tester.pumpAndSettle();
+      expect(find.text('BOSS RUSH COMPLETE'), findsOneWidget);
+      expect(profile.rushBests['normal'], 5000);
+      expect(profile.scores, isEmpty);
+      expect(profile.achievements, achievements);
+      expect(profile.medals, isEmpty);
+      expect(profile.checkpoint!.toJson(), cp);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
     'first flight teaches controls and practice preserves checkpoint',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
@@ -215,13 +247,11 @@ void main() {
       expect(profile.strikerUnlocked, isTrue);
       if (stage < 6) {
         expect(find.text('LEVEL $stage CLEAR'), findsOneWidget);
+        await tester.ensureVisible(find.byTooltip('Next level'));
         await tester.tap(find.byTooltip('Next level'));
         await tester.pump(const Duration(milliseconds: 16));
         expect(game.combat.weapon, Weapon.pulse);
-        expect(
-          game.combat.aircraft,
-          stage + 1 >= 4 ? Aircraft.wraith : Aircraft.striker,
-        );
+        expect(game.combat.aircraft, Aircraft.swift);
       }
     }
     expect(find.text('CAMPAIGN COMPLETE'), findsOneWidget);

@@ -1,10 +1,10 @@
-﻿# Planex
+# Planex
 
 Offline fullscreen Android arcade shooter built with Flutter and Flame.
 
 ## Download
 
-[**Download Android APK v2.0.0-rc.1**](https://github.com/jhombalz/planex/releases/download/v2.0.0-rc.1/planex-v2.0.0-rc.1.apk)
+[**Download Android APK v2.0.0-rc.2**](https://github.com/jhombalz/planex/releases/download/v2.0.0-rc.2/planex-v2.0.0-rc.2.apk)
 
 Open on your phone, download the APK and allow installation from your browser when
 Android prompts. This optimized **test candidate** retains the development signature
@@ -16,13 +16,33 @@ migrate automatically; old scores belong to Normal mode.
 
 ## New in the v2 candidate
 
+### rc.2 improvements
+
+- Your chosen aircraft stays equipped for the whole run. New planes remain
+  permanent unlocks and can be selected in the hangar for a future flight.
+- Spread joins the temporary bonus drops: green projectiles cover a wide arc,
+  with 5/7/9/11 shots at power 1/2/3/4 and one damage per pellet.
+- Later bosses have longer volley recovery and 350ms fan warnings, while each
+  later stage still raises combat pressure. Phone-based balance acceptance is pending.
+- Results show a colored medal and newly earned achievements/unlocks; previously
+  unlocked planes are not announced again.
+- Clear all six levels to unlock the fire icon for **Boss rush**. Fight the six
+  bosses in sequence after short warnings, starting at power 4. Each clear restores
+  one life (up to the mode's initial stock) and one bomb (up to five). Bonus drops
+  appear during boss entry. Best scores are saved separately by difficulty;
+  campaign medals, achievements, progress and checkpoints stay unchanged.
+- The headless stress simulation now exercises all six stages, three difficulties
+  and every weapon. Hardware FPS, heat, battery and audio checks remain pending.
+
+### Campaign features
+
 - **Six levels:** Coral Approach, Iron Harbor, Storm Citadel, Sunset Bastion,
   Frozen Convoy and Ember Fortress. Each has authored formations, a mid-level ace,
   a 45-second approach and its own boss movement and attack pattern.
 - **Three aircraft:** cyan Swift handles quickly; bronze Striker starts at power 2
   and has stronger bombs; violet Wraith fires faster and keeps bonuses longer,
-  with one starting bomb. Striker unlocks after level 1 and equips for level 2;
-  Wraith unlocks after level 3 and equips for level 4.
+  with one starting bomb. Striker unlocks after level 1;
+  Wraith unlocks after level 3. Your selected aircraft stays equipped between levels.
 - **Boss phases:** losing one turret changes attack pressure; losing both exposes
   the core and changes aimed fire. Pincer barrages, sweeping lanes and double
   helixes join fan, crossfire and spiral patterns.
@@ -49,7 +69,7 @@ migrate automatically; old scores belong to Normal mode.
   Buttons have tooltips/accessibility names. Android Back and interruptions pause
   play; resume explicitly. Left-handed, mute and sensitivity settings persist.
 - Pulse is the default. Gold-ring drops grant temporary Laser, Homing Missiles or
-  Plasma. Normal Swift/Striker bonuses last 18 seconds; Wraith gets 22. Easy adds
+  Plasma or Spread. Normal Swift/Striker bonuses last 18 seconds; Wraith gets 22. Easy adds
   two seconds; Expert removes two. Expiry, respawn and a new level restore Pulse.
 - Bonus weapons drop randomly (12% per kill), every six kills, and for four kills
   inside a rolling three-second combo window. Nearby pickups attract to the plane.
@@ -96,7 +116,7 @@ Phases 1-5 and the v2 feature expansion are implemented. Physical-phone acceptan
 balance/performance checks, production signing and store preparation remain before
 stable v2. See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
 
-Validation: static analysis reports no issues; 61 automated tests pass.
+Validation: static analysis reports no issues; 66 automated tests pass.
 Automated checks cover combat, six-level progression, multibeam damage, save
 migration, checkpoint recovery, practice isolation, mode leaderboards, medals,
 achievements, tutorial controls, sprite rendering and a ten-minute headless combat

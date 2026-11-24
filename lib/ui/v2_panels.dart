@@ -41,7 +41,7 @@ class _FlightGuideState extends State<_FlightGuide> {
         Text(
           const [
             'Drag anywhere to move. Weapons fire automatically. Tap the bomb icon with a second finger to clear danger.',
-            'Pulse is your default. Collect P for stronger volleys and gold-ring drops for temporary Laser, Missiles or Plasma. Move close to attract pickups.',
+            'Pulse is your default. Collect P for stronger volleys and gold-ring drops for temporary Laser, Missiles, Plasma or Spread. Move close to attract pickups.',
             'Orange lines show where shots will fire. Destroy boss turrets to expose the core. Pause when needed; practice never affects your records.',
           ][page],
         ),
@@ -109,6 +109,53 @@ void showPracticePicker(BuildContext context, FlightGame game) {
   );
 }
 
+class StageRewards extends StatelessWidget {
+  const StageRewards(this.game, {super.key});
+  final FlightGame game;
+  @override
+  Widget build(BuildContext context) {
+    final medal = game.combat.medal;
+    final color = switch (medal) {
+      Medal.gold => const Color(0xffffd16a),
+      Medal.silver => const Color(0xffbfcbd8),
+      Medal.bronze => const Color(0xffb48762),
+    };
+    return Column(
+      children: [
+        const SizedBox(height: 12),
+        Icon(Icons.workspace_premium, size: 44, color: color),
+        Text(
+          '${medal.name.toUpperCase()} MEDAL',
+          style: TextStyle(color: color, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          game.combat.rankedCampaign
+              ? 'Best medal saved for this difficulty'
+              : 'Session result only',
+          style: const TextStyle(fontSize: 12),
+        ),
+        for (final reward in game.earnedRewards)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                const Icon(Icons.verified, color: Color(0xffffd16a), size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    reward,
+                    style: const TextStyle(color: Color(0xffffd16a)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+}
+
 class V2HangarPanel extends StatelessWidget {
   const V2HangarPanel(this.game, {super.key});
   final FlightGame game;
@@ -164,8 +211,20 @@ class V2HangarPanel extends StatelessWidget {
               onPressed: () => showFlightGuide(context, game),
               icon: const ArcadeGlyph(GameAction.help),
             ),
+            IconButton.outlined(
+              tooltip: profile.bossRushUnlocked
+                  ? 'Boss rush'
+                  : 'Clear campaign to unlock boss rush',
+              onPressed: profile.bossRushUnlocked ? game.startBossRush : null,
+              icon: const Icon(Icons.local_fire_department_outlined),
+            ),
           ],
         ),
+        if (profile.bossRushUnlocked)
+          Text(
+            'Boss rush best: ${profile.rushBests[profile.mode.name] ?? 0}',
+            style: const TextStyle(fontSize: 12),
+          ),
         if (profile.checkpoint != null)
           Text(
             'Checkpoint: level ${profile.checkpoint!.stage} · ${profile.checkpoint!.mode.label}',

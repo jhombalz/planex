@@ -1,6 +1,6 @@
-﻿# Stable v2 release checklist
+# Stable v2 release checklist
 
-The v2.0.0-rc.1 APK is a development-signed test candidate. Feature implementation
+The v2.0.0-rc.2 APK is a development-signed test candidate. Feature implementation
 and automated checks do not establish physical-phone acceptance.
 
 ## Phone acceptance

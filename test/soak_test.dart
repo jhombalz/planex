@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:planex/game/combat_state.dart';
 import 'package:planex/game/weapon.dart';
+import 'package:planex/game/campaign.dart';
 
 void main() {
   test('ten-minute combat stress simulation keeps entities bounded', () {
@@ -19,9 +20,12 @@ void main() {
         maxBlasts = 0,
         maxWaves = 0;
     for (var frame = 0; frame < 60 * 600; frame++) {
-      if (state.stageCleared) {
+      if (frame % 2000 == 0 || state.stageCleared) {
         state = CombatState(random: Random(frame))
-          ..stage = 3
+          ..reset(
+            startStage: 1 + frame ~/ 6000,
+            challenge: Challenge.values[(frame ~/ 2000) % 3],
+          )
           ..power = 4
           ..protection = 100000;
       }
@@ -30,11 +34,12 @@ void main() {
       if (frame % 600 == 0) {
         state.collect(
           PickupKind.bonus,
-          bonus: Weapon.values[(frame ~/ 600) % 4],
+          bonus: Weapon.values[(frame ~/ 600) % Weapon.values.length],
         );
       }
       if (frame % 900 == 0 && state.boss == null) {
-        state.boss = StageBoss(3)..position.setValues(180, 215);
+        state.boss = StageBoss(state.stage, healthScale: state.mode.health)
+          ..position.setValues(180, 215);
       }
       state.player.x = 180 + sin(frame / 60) * 100;
       if (frame % 180 == 0) {
@@ -63,6 +68,8 @@ void main() {
       jsonEncode({
         'simulatedSeconds': 600,
         'frames': 36000,
+        'stages': 6,
+        'difficultyModes': 3,
         'executionMilliseconds': watch.elapsedMilliseconds,
         'peakBullets': maxBullets,
         'peakEnemies': maxEnemies,

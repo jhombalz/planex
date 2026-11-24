@@ -153,6 +153,93 @@ void main() {
     expect(wraith.aircraft.fireMultiplier, lessThan(1));
   });
 
+  test('chosen aircraft stays through the six-level campaign', () {
+    for (final plane in Aircraft.values) {
+      final state = CombatState()..reset(selected: plane);
+      for (var stage = 1; stage < 6; stage++) {
+        state.stageCleared = true;
+        state.nextStage();
+        expect(state.aircraft, plane);
+      }
+    }
+  });
+
+  test('later boss volleys leave recovery time and warn for 350ms', () {
+    for (final mode in Challenge.values) {
+      final state = CombatState()..reset(startStage: 6, challenge: mode);
+      state.boss = StageBoss(6)
+        ..position.setValues(180, 215)
+        ..radialTime = 100;
+      state.update(0.001);
+      expect(state.boss!.fanCharge, greaterThan(0.34));
+      expect(state.bossFanInterval, greaterThanOrEqualTo(0.53));
+      for (var i = 0; i < 30; i++) {
+        state.update(0.01);
+      }
+      expect(state.boss!.volleys, 0);
+      for (var i = 0; i < 6; i++) {
+        state.update(0.01);
+      }
+      expect(state.boss!.volleys, 1);
+    }
+  });
+
+  test('spread scales power, deals collision damage and expires to Pulse', () {
+    final state = CombatState();
+    for (var power = 1; power <= 4; power++) {
+      state.bullets.clear();
+      state.power = power;
+      state.collect(PickupKind.bonus, bonus: Weapon.spread);
+      state.shoot();
+      final shots = state.bullets.items.where((b) => b.active).toList();
+      expect(shots.length, 3 + power * 2);
+      expect(shots.every((b) => b.velocity.y < 0), isTrue);
+      expect(shots.first.velocity.x, lessThan(0));
+      expect(shots.last.velocity.x, greaterThan(0));
+    }
+    final enemy = Enemy(
+      state.player.x,
+      state.player.y - 27,
+      EnemyPattern.straight,
+      0,
+      health: 20,
+    );
+    state.enemies.add(enemy);
+    state.update(0.001);
+    expect(enemy.health, lessThan(20));
+    state.bonusTime = 0.001;
+    state.update(0.01);
+    expect(state.weapon, Weapon.pulse);
+  });
+
+  test('boss rush skips waves, restores between bosses, and persists separate best', () async {
+    final p = await profile();
+    expect(p.bossRushUnlocked, isFalse);
+    await p.recordStage(6);
+    expect(p.bossRushUnlocked, isTrue);
+    await p.saveCheckpoint(CombatState().checkpoint());
+    final checkpoint = p.checkpoint!.toJson();
+    await p.recordBossRush(5000, Challenge.expert);
+    await p.recordBossRush(100, Challenge.expert);
+    expect(p.scores, isEmpty);
+    expect(p.checkpoint!.toJson(), checkpoint);
+    expect(PlayerProfile(p.preferences).rushBests['expert'], 5000);
+    final state = CombatState()..reset(isBossRush: true);
+    state.update(0.1);
+    expect(state.enemies, isEmpty);
+    state.stageTime = 45;
+    state.update(0.01);
+    expect(state.boss, isNotNull);
+    expect(state.pickups.single.kind, PickupKind.bonus);
+    state.lives = 1;
+    state.stageCleared = true;
+    state.nextStage();
+    expect(state.bossRush, isTrue);
+    expect(state.stageTime, 42);
+    expect(state.lives, 2);
+    expect(state.power, 4);
+  });
+
   test('new bosses fire distinct pincer, lane and helix projectile paths', () {
     for (final stage in [4, 5, 6]) {
       final state = CombatState()..reset(startStage: stage);
