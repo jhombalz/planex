@@ -1,0 +1,5 @@
+Planex original assets
+
+The geometric aircraft, environments, boss artwork and synthesized audio were
+created for this repository. Audio is reproducible with tool/generate_audio.dart.
+No Sonic Wings/Aero Fighters artwork, music or other game assets are included.
