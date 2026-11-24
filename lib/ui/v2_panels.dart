@@ -5,16 +5,15 @@ import 'package:flutter/material.dart';
 import '../game/campaign.dart';
 import '../game/flight_game.dart';
 import 'arcade_glyph.dart';
+export 'menu_pages.dart';
+import 'menu_pages.dart';
 
 void showFlightGuide(
   BuildContext context,
   FlightGame game, {
   VoidCallback? onFinish,
 }) {
-  showDialog<void>(
-    context: context,
-    builder: (context) => _FlightGuide(game, onFinish),
-  );
+  openGamePage(context, _FlightGuide(game, onFinish));
 }
 
 class _FlightGuide extends StatefulWidget {
@@ -28,11 +27,32 @@ class _FlightGuide extends StatefulWidget {
 class _FlightGuideState extends State<_FlightGuide> {
   int page = 0;
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(const ['FLY', 'COLLECT', 'DODGE'][page]),
-    content: Column(
+  Widget build(BuildContext context) => GamePageShell(
+    title: 'FLIGHT GUIDE',
+    footer: [
+      IconButton.filled(
+        tooltip: page == 2 ? 'Begin flight' : 'Next tip',
+        icon: ArcadeGlyph(page == 2 ? GameAction.play : GameAction.next),
+        onPressed: () {
+          if (page < 2) {
+            setState(() => page++);
+            return;
+          }
+          widget.game.profile.tutorialSeen = true;
+          unawaited(widget.game.profile.save());
+          Navigator.pop(context);
+          widget.finish?.call();
+        },
+      ),
+    ],
+    child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        Text(
+          const ['FLY', 'COLLECT', 'DODGE'][page],
+          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 24),
         ArcadeGlyph(
           [GameAction.play, GameAction.resume, GameAction.practice][page],
           size: 64,
@@ -49,31 +69,15 @@ class _FlightGuideState extends State<_FlightGuide> {
         Text('${page + 1} / 3'),
       ],
     ),
-    actions: [
-      IconButton.filled(
-        tooltip: page == 2 ? 'Begin flight' : 'Next tip',
-        icon: ArcadeGlyph(page == 2 ? GameAction.play : GameAction.next),
-        onPressed: () {
-          if (page < 2) {
-            setState(() => page++);
-            return;
-          }
-          widget.game.profile.tutorialSeen = true;
-          unawaited(widget.game.profile.save());
-          Navigator.pop(context);
-          widget.finish?.call();
-        },
-      ),
-    ],
   );
 }
 
 void showPracticePicker(BuildContext context, FlightGame game) {
-  showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('PRACTICE LEVEL'),
-      content: Column(
+  openGamePage(
+    context,
+    GamePageShell(
+      title: 'PRACTICE LEVEL',
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Text(
@@ -227,66 +231,9 @@ class V2HangarPanel extends StatelessWidget {
           ),
         if (profile.checkpoint != null)
           Text(
-            'Checkpoint: level ${profile.checkpoint!.stage} · ${profile.checkpoint!.mode.label}',
+            'Checkpoint: level ${profile.checkpoint!.stage} Â· ${profile.checkpoint!.mode.label}',
             style: const TextStyle(fontSize: 12),
           ),
-        ExpansionTile(
-          tilePadding: EdgeInsets.zero,
-          title: Text(
-            'Achievements ${profile.achievements.length}/${Achievement.values.length}',
-          ),
-          children: Achievement.values
-              .map(
-                (a) => ListTile(
-                  dense: true,
-                  leading: Icon(
-                    profile.achievements.contains(a.name)
-                        ? Icons.verified
-                        : Icons.lock_outline,
-                    color: profile.achievements.contains(a.name)
-                        ? const Color(0xffffcf78)
-                        : null,
-                  ),
-                  title: Text(a.title),
-                  subtitle: Text(a.description),
-                ),
-              )
-              .toList(),
-        ),
-        ExpansionTile(
-          tilePadding: EdgeInsets.zero,
-          title: const Text('Campaign records'),
-          children: [
-            Wrap(
-              spacing: 6,
-              children: List.generate(campaign.length, (i) {
-                final medal = profile.medals['${profile.mode.name}:${i + 1}'];
-                return Tooltip(
-                  message: campaign[i].name,
-                  child: Chip(
-                    avatar: Icon(
-                      medal == null
-                          ? Icons.radio_button_unchecked
-                          : Icons.workspace_premium,
-                      color: medal == 2
-                          ? const Color(0xffffd16a)
-                          : medal == 1
-                          ? const Color(0xffbfcbd8)
-                          : const Color(0xffb48762),
-                      size: 18,
-                    ),
-                    label: Text('${i + 1}'),
-                  ),
-                );
-              }),
-            ),
-            Text(
-              'Campaign clears: ${profile.completions[profile.mode.name] ?? 0}',
-              style: const TextStyle(fontSize: 12),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
       ],
     );
   }

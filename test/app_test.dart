@@ -11,7 +11,9 @@ import 'package:planex/game/sprite_art.dart';
 import 'package:planex/services/player_profile.dart';
 
 FlightGame currentGame(WidgetTester tester) => tester
-    .widget<GameWidget<FlightGame>>(find.byType(GameWidget<FlightGame>))
+    .widget<GameWidget<FlightGame>>(
+      find.byType(GameWidget<FlightGame>, skipOffstage: false),
+    )
     .game!;
 
 void main() {

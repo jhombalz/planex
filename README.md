@@ -4,7 +4,7 @@ Offline fullscreen Android arcade shooter built with Flutter and Flame.
 
 ## Download
 
-[**Download Android APK v2.0.0-rc.2**](https://github.com/jhombalz/planex/releases/download/v2.0.0-rc.2/planex-v2.0.0-rc.2.apk)
+[**Download Android APK v2.0.0-rc.3**](https://github.com/jhombalz/planex/releases/download/v2.0.0-rc.3/planex-v2.0.0-rc.3.apk)
 
 Open on your phone, download the APK and allow installation from your browser when
 Android prompts. This optimized **test candidate** retains the development signature
@@ -15,6 +15,17 @@ migrate automatically; old scores belong to Normal mode.
 [Previous v0.9.0 APK](https://github.com/jhombalz/planex/releases/download/v0.9.0-polish/planex-v0.9.0.apk)
 
 ## New in the v2 candidate
+
+### rc.3 full-screen navigation
+
+- Home fills the screen with an opaque hangar background and icon navigation.
+- Controls has its own page for steering help, handedness, sensitivity, audio
+  and reduced motion settings.
+- Achievements has its own page, including medals and campaign records for all
+  three difficulties. High Scores has a separate page for campaign and rush records.
+- Tutorial and practice selection are full-screen pages. Android Back returns
+  to home; a paused flight stays paused until explicitly resumed.
+- Page content scrolls on smaller screens and respects cutouts and enlarged text.
 
 ### rc.2 improvements
 
@@ -116,7 +127,7 @@ Phases 1-5 and the v2 feature expansion are implemented. Physical-phone acceptan
 balance/performance checks, production signing and store preparation remain before
 stable v2. See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
 
-Validation: static analysis reports no issues; 66 automated tests pass.
+Validation: static analysis reports no issues; 70 automated tests pass.
 Automated checks cover combat, six-level progression, multibeam damage, save
 migration, checkpoint recovery, practice isolation, mode leaderboards, medals,
 achievements, tutorial controls, sprite rendering and a ten-minute headless combat
