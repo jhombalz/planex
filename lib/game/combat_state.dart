@@ -4,10 +4,11 @@ import 'package:flame/game.dart';
 
 import 'aircraft.dart';
 import 'weapon.dart';
+import 'campaign.dart';
 
 enum BulletOwner { player, enemy }
 
-enum EnemyPattern { straight, sine, turret }
+enum EnemyPattern { straight, sine, turret, miniboss }
 
 enum PickupKind { power, bomb, bonus }
 
@@ -62,14 +63,22 @@ class BossPart {
 }
 
 class StageBoss {
-  StageBoss(this.stage)
-    : core = BossPart(0, 160 + stage * 70),
-      wings = [BossPart(-68, 40 + stage * 18), BossPart(68, 40 + stage * 18)];
+  StageBoss(this.stage, {double healthScale = 1})
+    : core = BossPart(0, ((160 + stage * 70) * healthScale).round()),
+      wings = [
+        BossPart(-68, ((40 + stage * 18) * healthScale).round()),
+        BossPart(68, ((40 + stage * 18) * healthScale).round()),
+      ];
   final int stage;
-  String get name =>
-      const ['REEF REAPER', 'HARBOR HAMMER', 'STORM EMPEROR'][stage - 1];
-  String get attackName =>
-      const ['WIDE FAN', 'CROSSFIRE', 'ROTATING SPIRAL'][stage - 1];
+  String get name => campaign[stage - 1].boss;
+  String get attackName => campaign[stage - 1].attack;
+  int get phase => dying
+      ? 4
+      : exposed
+      ? 3
+      : wings.any((p) => p.health <= 0)
+      ? 2
+      : 1;
   final position = Vector2(180, -90);
   final BossPart core;
   final List<BossPart> wings;
@@ -123,6 +132,46 @@ const stageWaves = <List<(double, EnemyPattern)>>[
     (31, EnemyPattern.sine),
     (35, EnemyPattern.turret),
     (39, EnemyPattern.straight),
+  ],
+  [
+    (2, EnemyPattern.sine),
+    (5, EnemyPattern.straight),
+    (9, EnemyPattern.turret),
+    (13, EnemyPattern.sine),
+    (17, EnemyPattern.straight),
+    (21, EnemyPattern.turret),
+    (26, EnemyPattern.sine),
+    (30, EnemyPattern.straight),
+    (34, EnemyPattern.turret),
+    (38, EnemyPattern.sine),
+    (41, EnemyPattern.straight),
+  ],
+  [
+    (2, EnemyPattern.turret),
+    (5, EnemyPattern.sine),
+    (8, EnemyPattern.straight),
+    (11, EnemyPattern.turret),
+    (15, EnemyPattern.sine),
+    (19, EnemyPattern.straight),
+    (24, EnemyPattern.turret),
+    (28, EnemyPattern.sine),
+    (32, EnemyPattern.straight),
+    (36, EnemyPattern.turret),
+    (40, EnemyPattern.sine),
+  ],
+  [
+    (2, EnemyPattern.sine),
+    (4, EnemyPattern.turret),
+    (7, EnemyPattern.straight),
+    (10, EnemyPattern.sine),
+    (13, EnemyPattern.turret),
+    (16, EnemyPattern.straight),
+    (20, EnemyPattern.sine),
+    (24, EnemyPattern.turret),
+    (28, EnemyPattern.straight),
+    (32, EnemyPattern.sine),
+    (36, EnemyPattern.turret),
+    (40, EnemyPattern.straight),
   ],
 ];
 
@@ -191,6 +240,27 @@ class Enemy {
 class CombatState {
   CombatState({Random? random}) : random = random ?? Random();
   final Random random;
+  Challenge mode = Challenge.normal;
+  RunStats stats = RunStats();
+  bool practice = false, minibossSpawned = false;
+  int stageDamage = 0, stageShots = 0, stageHits = 0;
+  double get bonusDuration =>
+      aircraft.bonusSeconds +
+      (mode == Challenge.easy
+          ? 2
+          : mode == Challenge.expert
+          ? -2
+          : 0);
+  Medal get medal {
+    final fired = stats.shots - stageShots;
+    final accurate = fired == 0 || (stats.hits - stageHits) / fired >= 0.5;
+    return stageDamage == 0 && accurate
+        ? Medal.gold
+        : stageDamage <= 1
+        ? Medal.silver
+        : Medal.bronze;
+  }
+
   final player = Vector2(180, 530);
   final bullets = BulletPool(192);
   final enemies = <Enemy>[];
@@ -216,15 +286,19 @@ class CombatState {
     _ => const [-36, -12, 12, 36],
   };
   double get enemyFireInterval =>
-      max(0.42, 1.85 - difficulty * 0.13 - (stage - 1) * 0.26);
-  double get enemyBulletSpeed => 155 + difficulty * 15.0 + (stage - 1) * 25;
-  double get bossFanInterval => boss?.exposed == true
-      ? max(
-          0.36,
-          (boss!.core.health < boss!.core.maxHealth / 2 ? 0.65 : 0.85) -
-              (stage - 1) * 0.13,
-        )
-      : 1.15 - (stage - 1) * 0.18;
+      max(0.42, 1.85 - difficulty * 0.13 - (stage - 1) * 0.26) * mode.fire;
+  double get enemyBulletSpeed =>
+      (155 + difficulty * 15.0 + (stage - 1) * 25) * mode.speed;
+  double get bossFanInterval =>
+      (boss?.exposed == true
+          ? max(
+              0.36,
+              (boss!.core.health < boss!.core.maxHealth / 2 ? 0.65 : 0.85) -
+                  (stage - 1) * 0.13,
+            )
+          : max(0.45, 1.15 - (stage - 1) * 0.14)) *
+      mode.fire *
+      (boss?.phase == 2 ? 0.9 : 1);
   int power = 1;
   int bombs = 2;
   int stage = 1;
@@ -234,9 +308,8 @@ class CombatState {
   double bombFlash = 0;
   StageBoss? boss;
   bool stageCleared = false;
-  bool get victory => stageCleared && stage == 3;
-  String get stageName =>
-      const ['CORAL APPROACH', 'IRON HARBOR', 'STORM CITADEL'][stage - 1];
+  bool get victory => stageCleared && stage == campaign.length;
+  String get stageName => campaign[stage - 1].name;
   int score = 0;
   int lives = 3;
   int wave = 0;
@@ -249,7 +322,12 @@ class CombatState {
       bombs > 0 && !ended && !stageCleared && boss?.dying != true;
   int get difficulty => min(6, 1 + elapsed ~/ 25);
 
-  void reset({Aircraft selected = Aircraft.swift}) {
+  void reset({
+    Aircraft selected = Aircraft.swift,
+    Challenge challenge = Challenge.normal,
+    int startStage = 1,
+    bool isPractice = false,
+  }) {
     player.setValues(180, 530);
     bullets.clear();
     enemies.clear();
@@ -260,9 +338,14 @@ class CombatState {
     notice = '';
     noticeTime = playerHitTime = 0;
     aircraft = selected;
+    mode = challenge;
+    practice = isPractice;
+    stats = RunStats()..maxPower = selected.startingPower;
+    minibossSpawned = false;
+    stageDamage = stageShots = stageHits = 0;
     power = selected.startingPower;
-    bombs = 2;
-    stage = 1;
+    bombs = selected.startingBombs;
+    stage = startStage.clamp(1, campaign.length);
     weapon = Weapon.pulse;
     bonusTime = killWindow = 0;
     streak = 0;
@@ -272,10 +355,37 @@ class CombatState {
     boss = null;
     stageCleared = false;
     score = wave = 0;
-    lives = 3;
+    lives = challenge == Challenge.easy ? 5 : 3;
     elapsed = fireTime = waveTime = 0;
     protection = 2;
     ended = false;
+  }
+
+  RunCheckpoint checkpoint() => RunCheckpoint(
+    stage: stage,
+    lives: lives,
+    bombs: bombs,
+    power: power,
+    score: score,
+    aircraft: aircraft,
+    mode: mode,
+    stats: stats,
+    elapsed: elapsed,
+  );
+  void restore(RunCheckpoint saved) {
+    reset(
+      selected: saved.aircraft,
+      challenge: saved.mode,
+      startStage: saved.stage,
+    );
+    lives = saved.lives;
+    bombs = saved.bombs;
+    power = saved.power;
+    score = saved.score;
+    stats = RunStats.fromJson(saved.stats.toJson());
+    elapsed = saved.elapsed;
+    stageShots = stats.shots;
+    stageHits = stats.hits;
   }
 
   void update(double dt) {
@@ -294,7 +404,10 @@ class CombatState {
     noticeTime = max(0, noticeTime - dt);
     playerHitTime = max(0, playerHitTime - dt);
     killWindow = max(0, killWindow - dt);
-    if (killWindow == 0) streak = 0;
+    if (killWindow == 0) {
+      streak = 0;
+      stats.currentCombo = 0;
+    }
     if (bonusTime > 0) {
       final previousBonus = bonusTime;
       bonusTime = max(0, bonusTime - dt);
@@ -337,16 +450,31 @@ class CombatState {
     protection = max(0, protection - dt);
     fireTime += dt;
     waveTime += dt;
-    final interval = switch (weapon) {
-      Weapon.missiles => 0.45,
-      Weapon.plasma => 0.3,
-      _ => 0.15,
-    };
+    final interval =
+        (switch (weapon) {
+          Weapon.missiles => 0.45,
+          Weapon.plasma => 0.3,
+          _ => 0.15,
+        }) *
+        aircraft.fireMultiplier;
     if (fireTime >= interval) {
       fireTime -= interval;
       shoot();
     }
     final schedule = stageWaves[stage - 1];
+    if (!minibossSpawned && stageTime >= 22 && boss == null) {
+      minibossSpawned = true;
+      enemies.add(
+        Enemy(
+          180,
+          -35,
+          EnemyPattern.miniboss,
+          65 * mode.speed,
+          health: ((24 + stage * 6) * mode.health).round(),
+        ),
+      );
+      announce('ACE INBOUND');
+    }
     if (boss == null &&
         cue < schedule.length &&
         stageTime >= schedule[cue].$1) {
@@ -354,7 +482,7 @@ class CombatState {
       cue++;
     }
     if (boss == null && stageTime >= 45) {
-      boss = StageBoss(stage);
+      boss = StageBoss(stage, healthScale: mode.health);
       enemies.clear();
       clearEnemyBullets();
     }
@@ -371,7 +499,8 @@ class CombatState {
       if (enemy.health <= 0) continue;
       enemy.hitTime = max(0, enemy.hitTime - dt);
       enemy.age += dt;
-      if (enemy.pattern == EnemyPattern.turret &&
+      if ((enemy.pattern == EnemyPattern.turret ||
+              enemy.pattern == EnemyPattern.miniboss) &&
           enemy.position.y >= 120 &&
           enemy.age < 7) {
         enemy.position.y = 120;
@@ -395,6 +524,7 @@ class CombatState {
         final vy = sin(enemy.aimAngle) * speed;
         final spread =
             enemy.pattern == EnemyPattern.turret ||
+            enemy.pattern == EnemyPattern.miniboss ||
             (stage >= 2 && enemy.pattern == EnemyPattern.sine);
         for (final angle in spread ? [-0.18, 0.0, 0.18] : [0.0]) {
           bullets.spawn(
@@ -431,8 +561,13 @@ class CombatState {
       if (bullet.owner == BulletOwner.player) {
         for (final enemy in enemies) {
           if (enemy.health <= 0) continue;
-          if (_near(bullet.position, enemy.position, 23)) {
+          if (_near(
+            bullet.position,
+            enemy.position,
+            enemy.pattern == EnemyPattern.miniboss ? 34 : 23,
+          )) {
             bullet.active = false;
+            stats.hits++;
             enemy.health = max(0, enemy.health - bullet.damage);
             enemy.hitTime = 0.1;
             sounds.add(CombatSound.hit);
@@ -453,6 +588,7 @@ class CombatState {
             final dy = bullet.position.y - target.position.y;
             if (dx.abs() < (part == target.core ? 29 : 24) && dy.abs() < 32) {
               bullet.active = false;
+              stats.hits++;
               if (part != target.core || target.exposed) {
                 damageBossPart(part, bullet.damage);
                 if (bullet.kind == Weapon.missiles) {
@@ -501,12 +637,11 @@ class CombatState {
         3 => const [-18.0, 0.0, 18.0],
         _ => const [-27.0, -9.0, 9.0, 27.0],
       }) {
-        bullets.spawn(
+        _playerShot(
           player.x + offset,
           player.y - 25,
           offset * 3,
           -360,
-          BulletOwner.player,
           kind: Weapon.missiles,
           damage: 4 + power,
         );
@@ -520,25 +655,19 @@ class CombatState {
         3 => const [-90.0, 0.0, 90.0],
         _ => const [-140.0, -70.0, 0.0, 70.0, 140.0],
       }) {
-        bullets.spawn(
+        _playerShot(
           player.x + vx / 8,
           player.y - 25,
           vx,
           -440,
-          BulletOwner.player,
           kind: Weapon.plasma,
           damage: 2 + power,
         );
       }
       return;
     }
-    void shot(double offset, double vx) => bullets.spawn(
-      player.x + offset,
-      player.y - 25,
-      vx,
-      -600,
-      BulletOwner.player,
-    );
+    void shot(double offset, double vx) =>
+        _playerShot(player.x + offset, player.y - 25, vx, -600);
     if (power == 1) {
       shot(0, 0);
     } else if (power == 2) {
@@ -554,6 +683,28 @@ class CombatState {
       shot(9, 65);
       shot(-18, -160);
       shot(18, 160);
+    }
+  }
+
+  void _playerShot(
+    double x,
+    double y,
+    double vx,
+    double vy, {
+    Weapon kind = Weapon.pulse,
+    int damage = 1,
+  }) {
+    if (bullets.spawn(
+          x,
+          y,
+          vx,
+          vy,
+          BulletOwner.player,
+          kind: kind,
+          damage: damage,
+        ) !=
+        null) {
+      stats.shots++;
     }
   }
 
@@ -630,12 +781,14 @@ class CombatState {
     if (kind == PickupKind.bonus) {
       if (bonus == null || bonus == Weapon.pulse) return;
       weapon = bonus;
-      bonusTime = 18;
+      bonusTime = bonusDuration;
+      stats.weapons.add(bonus.name);
       announce('${bonus.label} BONUS');
       fireTime = laserTime = 0;
     } else if (kind == PickupKind.power) {
       if (power < 4) {
         power++;
+        stats.maxPower = max(stats.maxPower, power);
         announce('POWER $power');
       } else {
         score += 1000;
@@ -669,7 +822,16 @@ class CombatState {
   }
 
   void destroyEnemy(Enemy enemy) {
-    score += enemy.pattern == EnemyPattern.turret ? 250 : 100;
+    stats.kills++;
+    stats.currentCombo++;
+    stats.maxCombo = max(stats.maxCombo, stats.currentCombo);
+    score +=
+        (enemy.pattern == EnemyPattern.miniboss
+            ? 750
+            : enemy.pattern == EnemyPattern.turret
+            ? 250
+            : 100) *
+        (1 + min(3, stats.currentCombo ~/ 5));
     explode(enemy.position.x, enemy.position.y);
     kills++;
     streak++;
@@ -685,7 +847,10 @@ class CombatState {
       );
     }
     final combo = streak >= 4;
-    if ((combo || kills % 6 == 0 || random.nextDouble() < 0.12) &&
+    if ((enemy.pattern == EnemyPattern.miniboss ||
+            combo ||
+            kills % 6 == 0 ||
+            random.nextDouble() < 0.12) &&
         pickups.length < 12) {
       pickups.add(
         Pickup(
@@ -708,6 +873,7 @@ class CombatState {
   bool useBomb() {
     if (!canUseBomb) return false;
     bombs--;
+    stats.bombs++;
     if (bombWaves.length >= 3) bombWaves.removeAt(0);
     bombWaves.add(BombWave(player.x, player.y));
     explode(player.x, player.y, large: true);
@@ -725,16 +891,18 @@ class CombatState {
     clearEnemyBullets();
     for (final enemy in enemies) {
       if (enemy.health <= 0) continue;
-      enemy.health -= 30;
+      enemy.health -= (30 * aircraft.bombMultiplier).round();
       if (enemy.health <= 0) destroyEnemy(enemy);
     }
     enemies.removeWhere((enemy) => enemy.health <= 0);
     final target = boss;
     if (target != null && target.position.y >= 90) {
       for (final wing in target.wings) {
-        damageBossPart(wing, 28);
+        damageBossPart(wing, (28 * aircraft.bombMultiplier).round());
       }
-      if (target.exposed) damageBossPart(target.core, 40);
+      if (target.exposed) {
+        damageBossPart(target.core, (40 * aircraft.bombMultiplier).round());
+      }
     }
     return true;
   }
@@ -767,10 +935,14 @@ class CombatState {
     for (final part in target.parts) {
       part.hitTime = max(0, part.hitTime - dt);
     }
+    final speedBoost = target.phase >= 2 ? 1.15 : 1.0;
     target.position.x = switch (stage) {
-      1 => 180 + sin(target.age * 0.65) * 55,
-      2 => 180 + sin(target.age * 0.45) * 72,
-      _ => 180 + sin(target.age * 0.9) * 60,
+      1 => 180 + sin(target.age * 0.65 * speedBoost) * 55,
+      2 => 180 + sin(target.age * 0.45 * speedBoost) * 72,
+      3 => 180 + sin(target.age * 0.9 * speedBoost) * 60,
+      4 => 180 + sin(target.age * 0.5 * speedBoost) * 75,
+      5 => 180 + sin(target.age * 0.8 * speedBoost) * 40,
+      _ => 180 + sin(target.age * 1.1 * speedBoost) * 70,
     };
     target.position.y = min(215, target.position.y + dt * 65);
     if (target.position.y < 215) return;
@@ -782,25 +954,33 @@ class CombatState {
       if (target.fanCharge == 0) {
         target.radialTime = 0;
         target.volleys++;
-        final count = stage == 1
-            ? 9
-            : stage == 2
-            ? 8
-            : 14;
+        final count = const [9, 8, 14, 12, 7, 18][stage - 1];
         for (var i = 0; i < count; i++) {
-          final angle = stage == 3
+          final angle = stage == 6
+              ? (i.isEven ? 0 : pi) + target.volleys * 0.27 + (i ~/ 2) * 0.07
+              : stage == 3
               ? pi * 2 * i / count + target.volleys * 0.27
               : stage == 2
               ? pi * (0.2 + 0.6 * i / (count - 1))
               : pi * (0.12 + 0.76 * i / (count - 1));
-          final speed = 125 + stage * 22.0 + (enraged ? 18 : 0);
+          final speed = (125 + stage * 18.0 + (enraged ? 18 : 0)) * mode.speed;
           // Alternating harbor turrets sweep a slower crossfire fan.
           bullets.spawn(
-            target.position.x +
-                (stage == 2 ? (target.volleys.isEven ? -68 : 68) : 0),
+            stage == 5
+                ? 80 + i * 32 + (target.volleys.isEven ? 10 : -10)
+                : target.position.x +
+                      (stage == 2
+                          ? (target.volleys.isEven ? -68 : 68)
+                          : stage == 4
+                          ? (i.isEven ? -68 : 68)
+                          : 0),
             target.position.y + 28,
-            cos(angle) * speed,
-            sin(angle) * speed,
+            stage == 5
+                ? 0
+                : stage == 4
+                ? (i.isEven ? 1 : -1) * speed * (0.12 + (i ~/ 2) * 0.08)
+                : cos(angle) * speed,
+            stage == 5 || stage == 4 ? speed : sin(angle) * speed,
             BulletOwner.enemy,
           );
         }
@@ -812,19 +992,23 @@ class CombatState {
       target.aimCharge = max(0, target.aimCharge - dt);
       if (target.aimCharge == 0) {
         target.aimedTime = 0;
-        for (final wing in target.wings) {
+        for (final wing in target.exposed ? [target.core] : target.wings) {
           if (wing.health <= 0) continue;
           final x = target.position.x + wing.offsetX;
           final dx = target.aimX - x;
           final dy = target.aimY - target.position.y - 20;
           final distance = max(1.0, sqrt(dx * dx + dy * dy));
-          bullets.spawn(
-            x,
-            target.position.y + 20,
-            dx / distance * 170,
-            dy / distance * 170,
-            BulletOwner.enemy,
-          );
+          for (final spread in target.phase >= 2 ? [-0.08, 0.08] : [0.0]) {
+            final vx = dx / distance * 170 * mode.speed;
+            final vy = dy / distance * 170 * mode.speed;
+            bullets.spawn(
+              x,
+              target.position.y + 20,
+              vx * cos(spread) - vy * sin(spread),
+              vx * sin(spread) + vy * cos(spread),
+              BulletOwner.enemy,
+            );
+          }
         }
       }
     } else if (target.aimedTime >= max(0.55, 1.1 - stage * 0.12) - 0.3) {
@@ -854,26 +1038,37 @@ class CombatState {
         target.position.x + x,
         target.position.y + y,
         large: true,
-        color: stage == 3 ? 0xffb38cff : 0xffffb85b,
+        color: stage == 3
+            ? 0xffb38cff
+            : stage == 5
+            ? 0xff8cecff
+            : stage == 6
+            ? 0xffff7060
+            : 0xffffb85b,
       );
     }
     if (target.deathTime >= 1.4) {
       stageCleared = true;
-      ended = stage == 3;
+      ended = stage == campaign.length;
       sounds.add(CombatSound.clear);
     }
   }
 
   void nextStage() {
-    if (!stageCleared || stage >= 3) return;
+    if (!stageCleared || stage >= campaign.length) return;
     stage++;
     if (stage == 2) aircraft = Aircraft.striker;
+    if (stage == 4) aircraft = Aircraft.wraith;
     power = max(power, aircraft.startingPower);
     weapon = Weapon.pulse;
     bonusTime = killWindow = 0;
     streak = 0;
     laserTime = 0;
     stageTime = waveTime = fireTime = 0;
+    minibossSpawned = false;
+    stageDamage = 0;
+    stageShots = stats.shots;
+    stageHits = stats.hits;
     cue = 0;
     boss = null;
     stageCleared = false;
@@ -898,6 +1093,8 @@ class CombatState {
   void damagePlayer() {
     if (protection > 0 || ended || boss?.dying == true) return;
     lives--;
+    stats.damage++;
+    stageDamage++;
     explode(player.x, player.y, large: true);
     power = max(1, power - 1);
     playerHitTime = 0.16;
@@ -925,10 +1122,15 @@ class CombatState {
           50 + i * 260 / max(1, count - 1) + offset,
           -30 - i * 35,
           pattern,
-          100 + difficulty * 14.0 + stage * 16,
-          health: pattern == EnemyPattern.turret
-              ? 6 + stage * 3
-              : 2 + stage * 2,
+          (100 + difficulty * 14.0 + stage * 16) * mode.speed,
+          health:
+              ((pattern == EnemyPattern.miniboss
+                          ? 24 + stage * 6
+                          : pattern == EnemyPattern.turret
+                          ? 6 + stage * 3
+                          : 2 + stage * 2) *
+                      mode.health)
+                  .round(),
         ),
       );
     }

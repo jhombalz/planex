@@ -1,6 +1,7 @@
 import 'package:flutter/painting.dart';
 
 import 'sprite_art.dart';
+import 'campaign.dart';
 
 class Scenery {
   static void draw(Canvas canvas, int stage, double scroll) {
@@ -8,8 +9,7 @@ class Scenery {
       const Rect.fromLTWH(0, 0, 360, 640),
       Paint()..color = const Color(0xff073343),
     );
-    final image =
-        SpriteArt.backgrounds[['coral', 'harbor', 'storm'][stage - 1]];
+    final image = SpriteArt.backgrounds[campaign[stage - 1].background];
     if (image == null) return;
     final source = Rect.fromLTWH(
       0,

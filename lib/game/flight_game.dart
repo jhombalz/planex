@@ -13,6 +13,7 @@ import 'combat_state.dart';
 import 'weapon.dart';
 import 'sprite_art.dart';
 import 'scenery.dart';
+import 'campaign.dart';
 
 class FlightGame extends FlameGame with DragCallbacks {
   FlightGame(this.profile, {this.enableAudio = true});
@@ -43,8 +44,9 @@ class FlightGame extends FlameGame with DragCallbacks {
 
   void startFlight() {
     if (!started || ended) {
-      combat.reset(selected: profile.selected);
+      combat.reset(selected: profile.selected, challenge: profile.mode);
       _recorded = false;
+      unawaited(profile.saveCheckpoint(combat.checkpoint()));
     }
     started = active = true;
     _pointer = null;
@@ -76,12 +78,15 @@ class FlightGame extends FlameGame with DragCallbacks {
   void _recordRun() {
     if (_recorded) return;
     _recorded = true;
+    if (combat.practice) return;
     unawaited(
       profile.recordRun(
         score,
         combat.stageCleared || combat.boss?.dying == true
             ? combat.stage
             : combat.stage - 1,
+        challenge: combat.mode,
+        stats: combat.stats,
       ),
     );
   }
@@ -99,8 +104,41 @@ class FlightGame extends FlameGame with DragCallbacks {
   }
 
   void nextStage() {
+    if (combat.practice) {
+      startPractice(combat.stage);
+      return;
+    }
     combat.nextStage();
+    unawaited(profile.saveCheckpoint(combat.checkpoint()));
     startFlight();
+  }
+
+  void startPractice(int stage) {
+    combat.reset(
+      selected: profile.selected,
+      challenge: profile.mode,
+      startStage: stage.clamp(
+        1,
+        min(campaign.length, profile.clearedStage + 1),
+      ),
+      isPractice: true,
+    );
+    _recorded = false;
+    started = true;
+    startFlight();
+    combat.announce('PRACTICE · NO RECORDS');
+  }
+
+  void continueCheckpoint() {
+    final checkpoint = profile.checkpoint;
+    if (checkpoint == null) return;
+    combat.restore(checkpoint);
+    profile.mode = checkpoint.mode;
+    unawaited(profile.save());
+    _recorded = false;
+    started = true;
+    startFlight();
+    combat.announce('CHECKPOINT RESUMED');
   }
 
   bool useBomb() {
@@ -158,6 +196,8 @@ class FlightGame extends FlameGame with DragCallbacks {
       combat.weapon,
       combat.bonusTime.ceil(),
       combat.boss?.dying,
+      combat.mode,
+      combat.practice,
     );
     if (hash != _hudHash) {
       _hudHash = hash;
@@ -187,8 +227,26 @@ class FlightGame extends FlameGame with DragCallbacks {
       audio.setPlaying(false, mute: profile.muted);
       overlays.remove('hud');
       overlays.add('debrief');
-      unawaited(profile.recordStage(combat.stage));
-      if (combat.victory) _recordRun();
+      if (!combat.practice) {
+        unawaited(
+          profile.recordStage(
+            combat.stage,
+            challenge: combat.mode,
+            stats: combat.stats,
+            medal: combat.medal,
+          ),
+        );
+        if (combat.victory) {
+          _recordRun();
+          unawaited(profile.clearCheckpoint());
+        } else {
+          final next = CombatState()
+            ..restore(combat.checkpoint())
+            ..stageCleared = true;
+          next.nextStage();
+          unawaited(profile.saveCheckpoint(next.checkpoint()));
+        }
+      }
     } else if (ended) {
       _recordRun();
       pauseFlight();
@@ -372,6 +430,7 @@ class FlightGame extends FlameGame with DragCallbacks {
           enemy.charge,
           spread:
               enemy.pattern == EnemyPattern.turret ||
+              enemy.pattern == EnemyPattern.miniboss ||
               (combat.stage >= 2 && enemy.pattern == EnemyPattern.sine),
         );
       }
@@ -408,41 +467,64 @@ class FlightGame extends FlameGame with DragCallbacks {
         yScale: spriteYScale,
       );
       if (boss.fanCharge > 0 && !boss.dying) {
-        final origin =
-            at +
-            Offset(
-              combat.stage == 2 ? ((boss.volleys + 1).isEven ? -68 : 68) : 0,
-              28,
+        if (combat.stage == 4 || combat.stage == 5) {
+          final volley = boss.volleys + 1;
+          final count = combat.stage == 4 ? 12 : 7;
+          for (var i = 0; i < count; i++) {
+            final origin = Offset(
+              combat.stage == 5
+                  ? 80 + i * 32 + (volley.isEven ? 10 : -10)
+                  : at.dx + (i.isEven ? -68 : 68),
+              at.dy + 28,
             );
-        canvas.drawArc(
-          Rect.fromCircle(center: origin, radius: 45),
-          combat.stage == 3
-              ? 0
-              : combat.stage == 2
-              ? pi * 0.2
-              : pi * 0.12,
-          combat.stage == 3
-              ? pi * 2
-              : combat.stage == 2
-              ? pi * 0.6
-              : pi * 0.76,
-          false,
-          Paint()
-            ..color = const Color(0xffffa365)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2,
-        );
+            warning(
+              canvas,
+              origin,
+              combat.stage == 5
+                  ? pi / 2
+                  : atan2(1, (i.isEven ? 1 : -1) * (0.12 + (i ~/ 2) * 0.08)),
+              boss.fanCharge,
+            );
+          }
+        } else {
+          final origin =
+              at +
+              Offset(
+                combat.stage == 2 ? ((boss.volleys + 1).isEven ? -68 : 68) : 0,
+                28,
+              );
+          canvas.drawArc(
+            Rect.fromCircle(center: origin, radius: 45),
+            combat.stage == 3 || combat.stage == 6
+                ? 0
+                : combat.stage == 2
+                ? pi * 0.2
+                : pi * 0.12,
+            combat.stage == 3 || combat.stage == 6
+                ? pi * 2
+                : combat.stage == 2
+                ? pi * 0.6
+                : pi * 0.76,
+            false,
+            Paint()
+              ..color = const Color(0xffffa365)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2,
+          );
+        }
       }
       if (boss.aimCharge > 0 && !boss.dying) {
-        for (final wing in boss.wings) {
+        for (final wing in boss.exposed ? [boss.core] : boss.wings) {
           if (wing.health <= 0) continue;
           final origin = at + Offset(wing.offsetX, 20);
-          warning(
-            canvas,
-            origin,
-            atan2(boss.aimY - origin.dy, boss.aimX - origin.dx),
-            boss.aimCharge,
-          );
+          for (final spread in boss.phase >= 2 ? [-0.08, 0.08] : [0.0]) {
+            warning(
+              canvas,
+              origin,
+              atan2(boss.aimY - origin.dy, boss.aimX - origin.dx) + spread,
+              boss.aimCharge,
+            );
+          }
         }
       }
     }
@@ -574,7 +656,7 @@ class FlightGame extends FlameGame with DragCallbacks {
     label(canvas, 'SCORE $score', Offset(12, 8 + inset), size: 16);
     label(
       canvas,
-      'LIVES ${combat.lives}   POWER ${combat.power}   STAGE ${combat.stage}',
+      'LIVES ${combat.lives}  P${combat.power}  L${combat.stage}  ${combat.practice ? 'PRACTICE' : combat.mode.label}',
       Offset(12, 30 + inset),
       size: 12,
     );
@@ -593,6 +675,8 @@ class FlightGame extends FlameGame with DragCallbacks {
             ? 'DOWN'
             : boss.exposed
             ? 'EXPOSED'
+            : boss.phase == 2
+            ? 'ENRAGED'
             : 'SHIELDED'}',
         Offset(14, 59 + inset),
         size: 9,

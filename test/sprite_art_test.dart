@@ -12,12 +12,12 @@ void main() {
   test(
     'three cached scenery images cover the viewport through scroll wrap',
     () async {
-      expect(SpriteArt.backgrounds.length, 3);
+      expect(SpriteArt.backgrounds.length, 6);
       expect(
         SpriteArt.backgrounds.values.every((image) => image.width <= 512),
         isTrue,
       );
-      for (var stage = 1; stage <= 3; stage++) {
+      for (var stage = 1; stage <= 6; stage++) {
         for (final scroll in [0.0, 320.0, 639.9, 640.0]) {
           final recorder = ui.PictureRecorder();
           final canvas = ui.Canvas(recorder)..scale(64 / 360, 96 / 640);

@@ -18,6 +18,46 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(SpriteArt.load);
   testWidgets(
+    'first flight teaches controls and practice preserves checkpoint',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final profile = PlayerProfile(await SharedPreferences.getInstance());
+      await tester.pumpWidget(PlanexApp(profile: profile, enableAudio: false));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Start flight'));
+      await tester.pumpAndSettle();
+      final game = currentGame(tester);
+      expect(game.active, isFalse);
+      expect(find.text('FLY'), findsOneWidget);
+      for (var i = 0; i < 2; i++) {
+        await tester.tap(find.byTooltip('Next tip'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.byTooltip('Begin flight'));
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(game.active, isTrue);
+      expect(profile.tutorialSeen, isTrue);
+      final checkpoint = profile.checkpoint!.toJson();
+      game.pauseFlight();
+      game.returnToHangar();
+      await tester.pumpAndSettle();
+      final scores = List<int>.of(profile.scores);
+      game.startPractice(6);
+      expect(game.combat.stage, 1); // Locked practice levels cannot be reached.
+      game.combat.score = 999999;
+      game.combat.stageCleared = true;
+      game.update(0.01);
+      await tester.pump();
+      expect(find.text('PRACTICE COMPLETE'), findsOneWidget);
+      game.returnToHangar();
+      await tester.pumpAndSettle();
+      expect(profile.checkpoint!.toJson(), checkpoint);
+      expect(profile.scores, scores);
+      expect(profile.clearedStage, 0);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
     'controls respect display cutouts while scenery remains fullscreen',
     (tester) async {
       tester.view.physicalSize = const Size(360, 800);
@@ -29,7 +69,8 @@ void main() {
       addTearDown(tester.view.resetPadding);
       addTearDown(tester.view.resetViewPadding);
       SharedPreferences.setMockInitialValues({});
-      final profile = PlayerProfile(await SharedPreferences.getInstance());
+      final profile = PlayerProfile(await SharedPreferences.getInstance())
+        ..tutorialSeen = true;
       await tester.pumpWidget(PlanexApp(profile: profile, enableAudio: false));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Start flight'));
@@ -53,7 +94,8 @@ void main() {
     'quitting during boss destruction saves the cleared level reward',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
-      final profile = PlayerProfile(await SharedPreferences.getInstance());
+      final profile = PlayerProfile(await SharedPreferences.getInstance())
+        ..tutorialSeen = true;
       await tester.pumpWidget(PlanexApp(profile: profile, enableAudio: false));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Start flight'));
@@ -79,7 +121,8 @@ void main() {
     'fullscreen playfield has no weapon switch; bonuses come from drops',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
-      final profile = PlayerProfile(await SharedPreferences.getInstance());
+      final profile = PlayerProfile(await SharedPreferences.getInstance())
+        ..tutorialSeen = true;
       await profile.recordStage(3);
       await tester.pumpWidget(PlanexApp(profile: profile, enableAudio: false));
       await tester.pumpAndSettle();
@@ -113,7 +156,8 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
-    final profile = PlayerProfile(await SharedPreferences.getInstance());
+    final profile = PlayerProfile(await SharedPreferences.getInstance())
+      ..tutorialSeen = true;
     await tester.pumpWidget(PlanexApp(profile: profile, enableAudio: false));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Start flight'));
@@ -152,13 +196,14 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
-    final profile = PlayerProfile(await SharedPreferences.getInstance());
+    final profile = PlayerProfile(await SharedPreferences.getInstance())
+      ..tutorialSeen = true;
     await tester.pumpWidget(PlanexApp(profile: profile, enableAudio: false));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Start flight'));
     await tester.pump(const Duration(milliseconds: 16));
     final game = currentGame(tester);
-    for (var stage = 1; stage <= 3; stage++) {
+    for (var stage = 1; stage <= 6; stage++) {
       final boss = StageBoss(stage)..position.setValues(180, 215);
       game.combat.boss = boss;
       for (final part in boss.parts) {
@@ -168,17 +213,20 @@ void main() {
       await tester.pumpAndSettle();
       expect(game.active, isFalse);
       expect(profile.strikerUnlocked, isTrue);
-      if (stage < 3) {
+      if (stage < 6) {
         expect(find.text('LEVEL $stage CLEAR'), findsOneWidget);
         await tester.tap(find.byTooltip('Next level'));
         await tester.pump(const Duration(milliseconds: 16));
         expect(game.combat.weapon, Weapon.pulse);
-        expect(game.combat.aircraft, Aircraft.striker);
+        expect(
+          game.combat.aircraft,
+          stage + 1 >= 4 ? Aircraft.wraith : Aircraft.striker,
+        );
       }
     }
     expect(find.text('CAMPAIGN COMPLETE'), findsOneWidget);
     expect(profile.highScore, game.score);
-    expect(profile.clearedStage, 3);
+    expect(profile.clearedStage, 6);
     await tester.tap(find.byTooltip('Return to hangar'));
     await tester.pumpAndSettle();
     expect(profile.scores.length, 1);

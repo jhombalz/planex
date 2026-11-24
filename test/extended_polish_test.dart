@@ -82,7 +82,7 @@ void main() {
         }
         step(state, 1.0);
         expect(state.stageCleared, isTrue);
-        expect(state.ended, stage == 3);
+        expect(state.ended, stage == 6);
         expect(state.score, score);
         expect(state.sounds, contains(CombatSound.clear));
       }
@@ -111,7 +111,7 @@ void main() {
         const ui.Size(360, 800),
         const ui.Size(412, 915),
       ]) {
-        for (final sprite in ['swift', 'striker']) {
+        for (final sprite in ['swift', 'striker', 'wraith']) {
           final recorder = ui.PictureRecorder();
           final canvas = ui.Canvas(recorder);
           final sx = viewport.width / 360;

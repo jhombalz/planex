@@ -1,72 +1,65 @@
-# Planex
+﻿# Planex
 
 Offline fullscreen Android arcade shooter built with Flutter and Flame.
 
 ## Download
 
-[**Download Android APK v0.9.0**](https://github.com/jhombalz/planex/releases/download/v0.9.0-polish/planex-v0.9.0.apk)
+[**Download Android APK v2.0.0-rc.1**](https://github.com/jhombalz/planex/releases/download/v2.0.0-rc.1/planex-v2.0.0-rc.1.apk)
 
-Open the link on your phone, download the APK, then install it. Allow installation
-from your browser when Android prompts. It installs over earlier Planex test builds
-and retains scores, cleared levels, plane choice and settings. Legacy weapon
-selections are ignored: every flight starts with Pulse.
+Open on your phone, download the APK and allow installation from your browser when
+Android prompts. This optimized **test candidate** retains the development signature
+used by previous Planex test builds. Existing scores, aircraft, settings and progress
+migrate automatically; old scores belong to Normal mode.
 
-This optimized test build uses development signing. Physical-phone validation of
-immersive fullscreen, native audio, balancing and sustained performance is pending.
+[All releases](https://github.com/jhombalz/planex/releases) |
+[Previous v0.9.0 APK](https://github.com/jhombalz/planex/releases/download/v0.9.0-polish/planex-v0.9.0.apk)
 
-[All releases](https://github.com/jhombalz/planex/releases) ·
-[Previous v0.8.0 APK](https://github.com/jhombalz/planex/releases/download/v0.8.0-bonus/planex-v0.8.0.apk)
+## New in the v2 candidate
 
-## v0.9.0 polish update
+- **Six levels:** Coral Approach, Iron Harbor, Storm Citadel, Sunset Bastion,
+  Frozen Convoy and Ember Fortress. Each has authored formations, a mid-level ace,
+  a 45-second approach and its own boss movement and attack pattern.
+- **Three aircraft:** cyan Swift handles quickly; bronze Striker starts at power 2
+  and has stronger bombs; violet Wraith fires faster and keeps bonuses longer,
+  with one starting bomb. Striker unlocks after level 1 and equips for level 2;
+  Wraith unlocks after level 3 and equips for level 4.
+- **Boss phases:** losing one turret changes attack pressure; losing both exposes
+  the core and changes aimed fire. Pincer barrages, sweeping lanes and double
+  helixes join fan, crossfire and spiral patterns.
+- **Easy, Normal and Expert:** different health, shot speed and firing pressure,
+  separate local leaderboards, and five starting lives on Easy.
+- **Progress:** nine achievements, best bronze/silver/gold medals per level and
+  difficulty, campaign-clear counts, combo scoring and projectile accuracy.
+- **Recovery and learning:** a three-step first-flight guide, replayable tutorial,
+  practice for reached levels, and saved checkpoints at campaign level starts.
+  Continue restarts that level with saved resources, not a mid-level position.
+  Practice never changes records or checkpoints.
+- **New icons:** cyan aircraft/gold-wing launcher with adaptive, round and legacy
+  Android variants, matching Android 12 splash and custom icon-only action buttons.
 
-All six recommended improvement areas were implemented before building this version:
-
-1. **Fairer attacks:** enemies show a 300 ms firing cue and lock their aim before
-   firing. Boss volleys have charge indicators. A three-second warning precedes
-   boss arrival, and bosses do not shoot while entering behind the HUD.
-2. **Scrolling scenery:** original tropical coastline, industrial harbor and storm
-   island images replace the simple background shapes. The central channel stays
-   dark for projectile readability. Images are decoded once at 512px width.
-3. **Combat feedback:** brief hit flashes, impact sounds, damage smoke, animated
-   propellers and distinct Pulse/Laser/Missile/Plasma sounds. Reduced motion
-   suppresses flashes and freezes scenery/propeller animation.
-4. **Pickup polish:** nearby drops attract toward the player, pickups announce
-   their effect, and a three-second expiry warning accompanies the red bonus timer.
-5. **Boss variety:** Reef Reaper uses a wide fan, Harbor Hammer alternates turret
-   crossfire, and Storm Emperor fires rotating spirals. Each has different movement
-   and a 1.4-second destruction sequence before level clear. The final boss has
-   purple energy bursts; destruction cannot harm the player or score twice.
-6. **Screen/performance polish:** aircraft and projectile images preserve their
-   proportions on tall fullscreen displays. Controls respect cutouts. Sprite paint
-   objects use a bounded cache, projectiles remain pooled, and a ten-minute headless
-   combat simulation checks entity limits. Physical-device FPS/audio testing is
-   still pending because no Android phone was connected.
-
-<img src="assets/images/background_coral.png" width="140" alt="Coral coast scenery">
-<img src="assets/images/background_harbor.png" width="140" alt="Industrial harbor scenery">
-<img src="assets/images/background_storm.png" width="140" alt="Storm island scenery">
-
-The scenery was created with built-in imagegen. Original files are in
-`assets/images/background_*.png`; exact prompts are in [SCENERY_PROMPTS.txt](assets/SCENERY_PROMPTS.txt).
+<img src="assets/images/launcher_source.png" width="110" alt="Planex launcher artwork">
+<img src="assets/images/background_sunset.png" width="110" alt="Sunset scenery">
+<img src="assets/images/background_arctic.png" width="110" alt="Arctic scenery">
+<img src="assets/images/background_volcano.png" width="110" alt="Volcanic scenery">
 
 ## Controls and bonuses
 
-- Drag anywhere to steer. Weapons fire automatically.
-- Flight buttons are icons: pause at the top right and bomb near the bottom.
-  The bomb badge shows your stock. Buttons retain tooltips/accessibility names.
-- Pulse is always the default. Collect a gold-ring weapon drop for **18 seconds**
-  of Laser, Homing Missiles or Plasma. Expiry, respawn and a new level restore Pulse.
-  The small circular weapon indicator shows remaining bonus time; it is not a switch.
-- Bonus drops have a 12% random kill chance, a guaranteed reward every six kills,
-  and a reward for four kills within a rolling three-second combo window.
-- Collect **P** for power, **B** for bombs. Power stays when a bonus expires.
-  Every third kill drops a supply; every ninth kill drops a bomb supply.
-- You have three lives. Respawn grants a two-second shield and removes one power
-  level. Bombs clear hostile bullets, damage enemies and grant temporary protection.
-- Pause also activates on Android Back or an app interruption. Resume explicitly
-  with the play icon. Menus use play, next-level, replay and home icon actions.
-
-### P upgrades
+- Drag anywhere to steer; weapons fire automatically. Use a second finger for bombs.
+- Pause is at the top right; bomb stock appears beside the bottom bomb icon.
+  Buttons have tooltips/accessibility names. Android Back and interruptions pause
+  play; resume explicitly. Left-handed, mute and sensitivity settings persist.
+- Pulse is the default. Gold-ring drops grant temporary Laser, Homing Missiles or
+  Plasma. Normal Swift/Striker bonuses last 18 seconds; Wraith gets 22. Easy adds
+  two seconds; Expert removes two. Expiry, respawn and a new level restore Pulse.
+- Bonus weapons drop randomly (12% per kill), every six kills, and for four kills
+  inside a rolling three-second combo window. Nearby pickups attract to the plane.
+- **P** raises power; **B** adds bombs. Every third kill drops a supply and every
+  ninth drops a bomb supply. Maxed pickups award points.
+- Bombs clear hostile bullets, damage enemies and grant temporary protection.
+  Respawning removes one power level and grants a two-second shield.
+- Gold medals require no damage and at least 50% projectile accuracy (or no
+  projectile shots). Silver requires at most one hit; otherwise bronze.
+  Laser ticks are excluded from projectile accuracy.
 
 | Power | Pulse shots | Laser beams | Homing missiles | Plasma shots |
 | --- | --- | --- | --- | --- |
@@ -75,64 +68,49 @@ The scenery was created with built-in imagegen. Original files are in
 | 3 | 3 | 3 | 3 | 3 |
 | 4 | 5 | 4 | 4 | 5 |
 
-Laser drawing and damage use the same beam positions. Beams pierce aligned
-enemies; multiple overlapping beams do not multiply damage against a single
-target in one tick. Power also increases bonus damage/beam width. Maxed pickups
-award bonus points.
+Laser rendering and damage share beam positions. Beams pierce aligned enemies;
+overlapping beams do not multiply damage to one target in a single tick.
 
-## Levels and aircraft
+## Combat and presentation
 
-Clear Coral Approach, Iron Harbor and Storm Citadel. Each level has an authored
-45-second approach followed by a multipart boss. Destroy both turrets to expose
-the core. The boss display emphasizes core health/percentage, shield/enraged state
-and two smaller turret indicators. Every regular enemy retains its own health bar.
-
-Each level raises enemy health, movement speed, projectile speed and fire rate,
-plus boss health and fan-fire frequency. Later levels also have more formations.
-
-Reaching **level 2** permanently unlocks the bronze **Striker**, which is equipped
-automatically for that level. It has amber projectile/laser effects and at least
-power 2. Swift uses cyan effects and agile handling. Choose unlocked aircraft by
-their icons in the hangar for future runs. Weapon bonuses are earned in combat,
-not unlocked or selected in the hangar.
+Every enemy has a health indicator. Boss UI separates shielded core health and
+turrets. Aim cues precede shots; a warning precedes boss arrival. Hit flashes,
+smoke, propellers, distinct weapon sounds and a 1.4-second boss destruction sequence
+provide feedback. Reduced motion suppresses flashes and freezes scenery/propellers.
+Projectile pools, bounded paint caches and downsampled scenery limit resource use.
+Sprites preserve proportions on tall screens and controls respect cutouts.
 
 ## Artwork
 
-Aircraft, bosses, modules, bullets and weapons use bundled transparent PNG sprites
-from one cached atlas. Runtime tinting distinguishes aircraft weapon effects.
+Original aircraft, bosses and projectile PNGs are bundled in cached sprite atlases.
+The v2 expansion, launcher and three new backgrounds were made with built-in
+imagegen. Saved assets: [assets/images](assets/images). Exact v2 prompts:
+[V2_ART_PROMPTS.txt](assets/V2_ART_PROMPTS.txt). See the original
+[sprite prompt](assets/ART_PROMPT.txt), [scenery prompts](assets/SCENERY_PROMPTS.txt)
+and [provenance](assets/LICENSE.txt). No sprites were extracted from the reference
+arcade screenshot. Explosions and UI use code; audio is synthesized.
 
-<img src="assets/images/arcade_atlas.png" width="460" alt="Planex aircraft and projectile sprites">
+## Development and release
 
-The atlas was created with built-in imagegen using the supplied arcade screenshot
-as a style reference. See the [prompt](assets/ART_PROMPT.txt),
-[sprite index](assets/images/arcade_atlas.json) and [asset provenance](assets/LICENSE.txt).
-Scenery uses bundled images; explosions and warning overlays are rendered in code.
-Audio is synthesized and bundled.
+Phases 1-5 and the v2 feature expansion are implemented. Physical-phone acceptance,
+balance/performance checks, production signing and store preparation remain before
+stable v2. See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
 
-## Development status and verification
-
-Phases 1–5 are implemented. Phase 6 remains: device acceptance testing,
-balancing/performance, production signing and AAB preparation.
-
-For v0.9.0, analysis and all **53 automated tests** passed. Tests cover combat,
-bonus collection/expiry, combo rewards, multibeam damage, P volley upgrades,
-legacy-save migration, level-2 unlocks, icon controls, viewport sizing and pause.
-Additional checks cover boss variants/destruction, firing cues, pickup attraction,
-background wrap, image aspect ratios, cutouts and a ten-minute combat simulation.
-The simulation report is written to `build/combat-soak.json`; its timing is not
-a measurement of physical-device FPS. Phone-sized rendering was inspected.
-Native system bars and audio still require
-physical-device verification.
+Validation: static analysis reports no issues; 61 automated tests pass.
+Automated checks cover combat, six-level progression, multibeam damage, save
+migration, checkpoint recovery, practice isolation, mode leaderboards, medals,
+achievements, tutorial controls, sprite rendering and a ten-minute headless combat
+simulation. Simulation timing is not physical-device FPS.
 
 ```sh
 flutter pub get
-flutter run
 flutter analyze
 flutter test
 flutter build apk --release
 ```
 
 APK: `build/app/outputs/flutter-apk/app-release.apk`.
-Audio generator: `dart tool/generate_audio.dart`.
+Audio: `dart tool/generate_audio.dart`.
+Launcher packaging: `tool/generate_android_icons.ps1`.
 `DEVELOPMENT_GUIDE.md` is the original design reference; this README describes the
-current Android implementation. In-progress runs do not survive process exit.
+current Android implementation.

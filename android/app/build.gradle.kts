@@ -1,10 +1,30 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releaseKeysFile = rootProject.file("key.properties")
+val releaseKeys = Properties()
+if (releaseKeysFile.exists()) releaseKeysFile.inputStream().use { releaseKeys.load(it) }
+val productionRelease = project.findProperty("productionRelease") == "true"
+if (productionRelease && !releaseKeysFile.exists()) {
+    throw GradleException("Production signing requires android/key.properties. See RELEASE_CHECKLIST.md.")
+}
+
 android {
+    signingConfigs {
+        if (releaseKeysFile.exists()) {
+            create("production") {
+                storeFile = rootProject.file(releaseKeys.getProperty("storeFile"))
+                storePassword = releaseKeys.getProperty("storePassword")
+                keyAlias = releaseKeys.getProperty("keyAlias")
+                keyPassword = releaseKeys.getProperty("keyPassword")
+            }
+        }
+    }
     namespace = "com.jhombalz.planex"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
@@ -31,9 +51,8 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Test candidates retain development signing; production requires private keys.
+            signingConfig = signingConfigs.getByName(if (releaseKeysFile.exists()) "production" else "debug")
         }
     }
 }

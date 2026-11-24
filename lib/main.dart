@@ -11,6 +11,8 @@ import 'game/flight_game.dart';
 import 'game/sprite_art.dart';
 import 'game/weapon.dart';
 import 'services/player_profile.dart';
+import 'ui/arcade_glyph.dart';
+import 'ui/v2_panels.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,6 +69,16 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
         brightness: Brightness.dark,
       ),
       scaffoldBackgroundColor: const Color(0xff061725),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          backgroundColor: const Color(0xff123247),
+          foregroundColor: const Color(0xffffcf78),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: Color(0x8872e8ec)),
+          ),
+        ),
+      ),
     ),
     home: PopScope(
       canPop: false,
@@ -92,7 +104,7 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
                           child: IconButton.filledTonal(
                             tooltip: 'Pause flight',
                             onPressed: game.pauseFlight,
-                            icon: const Icon(Icons.pause, size: 28),
+                            icon: const ArcadeGlyph(GameAction.pause),
                           ),
                         ),
                         Positioned(
@@ -128,10 +140,10 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
                                   alignment: Alignment.center,
                                   children: [
                                     CircularProgressIndicator(
-                                      value: (game.combat.bonusTime / 18).clamp(
-                                        0,
-                                        1,
-                                      ),
+                                      value:
+                                          (game.combat.bonusTime /
+                                                  game.combat.bonusDuration)
+                                              .clamp(0, 1),
                                       strokeWidth: 3,
                                       color: game.combat.bonusTime <= 3
                                           ? const Color(0xffff786f)
@@ -170,7 +182,9 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  game.combat.victory
+                                  game.combat.practice
+                                      ? 'PRACTICE COMPLETE'
+                                      : game.combat.victory
                                       ? 'CAMPAIGN COMPLETE'
                                       : 'LEVEL ${game.combat.stage} CLEAR',
                                   style: const TextStyle(
@@ -183,7 +197,17 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
                                 Text(
                                   'Score ${game.score} · Lives ${game.combat.lives}',
                                 ),
-                                if (game.combat.stage == 1) ...[
+                                const SizedBox(height: 10),
+                                Text(
+                                  '${game.combat.medal.name.toUpperCase()} · COMBO ${game.combat.stats.maxCombo} · ${game.combat.stats.accuracy == null ? 'LASER RUN' : 'ACCURACY ${(game.combat.stats.accuracy! * 100).round()}%'}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Color(0xffffcf78),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                if (!game.combat.practice &&
+                                    game.combat.stage == 1) ...[
                                   const AircraftPreview(Aircraft.striker),
                                   const Text(
                                     'STRIKER UNLOCKED',
@@ -197,22 +221,42 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
                                     textAlign: TextAlign.center,
                                   ),
                                 ],
+                                if (!game.combat.practice &&
+                                    game.combat.stage == 3) ...[
+                                  const AircraftPreview(Aircraft.wraith),
+                                  const Text(
+                                    'WRAITH UNLOCKED',
+                                    style: TextStyle(
+                                      color: Color(0xffc18aff),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const Text(
+                                    'Violet stealth fighter · faster fire · longer bonuses',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                                 const SizedBox(height: 16),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    if (!game.combat.victory)
+                                    if (!game.combat.victory ||
+                                        game.combat.practice)
                                       IconButton.filled(
-                                        tooltip: 'Next level',
+                                        tooltip: game.combat.practice
+                                            ? 'Repeat practice'
+                                            : 'Next level',
                                         onPressed: game.nextStage,
-                                        icon: const Icon(Icons.double_arrow),
+                                        icon: const ArcadeGlyph(
+                                          GameAction.next,
+                                        ),
                                         iconSize: 34,
                                       ),
                                     const SizedBox(width: 16),
                                     IconButton.outlined(
                                       tooltip: 'Return to hangar',
                                       onPressed: game.returnToHangar,
-                                      icon: const Icon(Icons.home_outlined),
+                                      icon: const ArcadeGlyph(GameAction.home),
                                       iconSize: 30,
                                     ),
                                   ],
@@ -291,12 +335,12 @@ class Hangar extends StatelessWidget {
                           alignment: WrapAlignment.center,
                           spacing: 8,
                           children: Aircraft.values.map((plane) {
-                            final locked =
-                                plane == Aircraft.striker &&
-                                !profile.strikerUnlocked;
+                            final locked = !profile.unlocked(plane);
                             return Tooltip(
                               message: locked
-                                  ? 'Reach level 2 to unlock Striker'
+                                  ? plane == Aircraft.striker
+                                        ? 'Reach level 2 to unlock Striker'
+                                        : 'Reach level 4 to unlock Wraith'
                                   : plane.description,
                               child: ChoiceChip(
                                 avatar: SpriteIcon(plane.name, size: 24),
@@ -340,9 +384,15 @@ class Hangar extends StatelessWidget {
                             style: IconButton.styleFrom(
                               minimumSize: const Size(64, 64),
                             ),
-                            onPressed: game.startFlight,
-                            icon: Icon(
-                              game.ended ? Icons.replay : Icons.play_arrow,
+                            onPressed: paused || profile.tutorialSeen
+                                ? game.startFlight
+                                : () => showFlightGuide(
+                                    context,
+                                    game,
+                                    onFinish: game.startFlight,
+                                  ),
+                            icon: ArcadeGlyph(
+                              game.ended ? GameAction.retry : GameAction.play,
                               size: 38,
                             ),
                           ),
@@ -351,7 +401,7 @@ class Hangar extends StatelessWidget {
                             IconButton.outlined(
                               tooltip: 'End flight and save score',
                               onPressed: game.returnToHangar,
-                              icon: const Icon(Icons.home_outlined),
+                              icon: const ArcadeGlyph(GameAction.home),
                             ),
                           ],
                         ],
@@ -362,6 +412,7 @@ class Hangar extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 12, height: 1.5),
                       ),
+                      if (!paused) V2HangarPanel(game),
                       ExpansionTile(
                         title: const Text('Settings & controls'),
                         tilePadding: EdgeInsets.zero,
@@ -417,7 +468,7 @@ class Hangar extends StatelessWidget {
                       ExpansionTile(
                         title: const Text('High scores'),
                         tilePadding: EdgeInsets.zero,
-                        children: profile.scores.isEmpty
+                        children: profile.visibleScores.isEmpty
                             ? [
                                 const Padding(
                                   padding: EdgeInsets.all(12),
@@ -426,7 +477,7 @@ class Hangar extends StatelessWidget {
                                   ),
                                 ),
                               ]
-                            : profile.scores
+                            : profile.visibleScores
                                   .asMap()
                                   .entries
                                   .map(

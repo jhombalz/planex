@@ -14,3 +14,7 @@ only during runtime decoding to reduce texture memory.
 UI/effects and synthesized audio were created for this repository.
 Audio is reproducible with tool/generate_audio.dart.
 No third-party arcade-game sprite sheets or soundtrack files are bundled.
+
+The v2 expansion atlas, launcher source and sunset/arctic/volcano backgrounds
+were generated with built-in imagegen. Exact prompts: V2_ART_PROMPTS.txt.
+Launcher resources are mechanically resized packaging of the original source.

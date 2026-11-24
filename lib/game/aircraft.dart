@@ -6,6 +6,13 @@ enum Aircraft {
     0.9,
     2,
     0xffffaa55,
+  ),
+  wraith(
+    'WRAITH',
+    'Level 4 stealth fighter · faster fire · longer bonuses',
+    1.2,
+    1,
+    0xffc18aff,
   );
 
   const Aircraft(
@@ -20,4 +27,8 @@ enum Aircraft {
   final double handling;
   final int startingPower;
   final int weaponColor;
+  int get startingBombs => this == Aircraft.wraith ? 1 : 2;
+  double get fireMultiplier => this == Aircraft.wraith ? 0.85 : 1;
+  double get bonusSeconds => this == Aircraft.wraith ? 22 : 18;
+  double get bombMultiplier => this == Aircraft.striker ? 1.25 : 1;
 }

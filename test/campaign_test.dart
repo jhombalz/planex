@@ -123,7 +123,7 @@ void main() {
   );
   test('three boss victories advance stages and finish campaign once', () {
     final state = CombatState()..power = 4;
-    for (var stage = 1; stage <= 3; stage++) {
+    for (var stage = 1; stage <= 6; stage++) {
       expect(state.stage, stage);
       final boss = StageBoss(stage)..position.setValues(180, 110);
       state.boss = boss;
@@ -144,7 +144,7 @@ void main() {
       final time = state.elapsed;
       state.update(0.1);
       expect(state.elapsed, time);
-      if (stage < 3) {
+      if (stage < 6) {
         state.nextStage();
         expect(state.boss, isNull);
         expect(state.stageTime, 0);
@@ -155,7 +155,7 @@ void main() {
     expect(state.victory, isTrue);
     expect(state.ended, isTrue);
     state.nextStage();
-    expect(state.stage, 3);
+    expect(state.stage, 6);
     state.reset(selected: Aircraft.striker);
     expect(state.stageCleared, isFalse);
     expect(state.stage, 1);

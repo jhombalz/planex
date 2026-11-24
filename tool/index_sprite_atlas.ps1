@@ -1,16 +1,19 @@
-# Read alpha bounds only; the generated PNG remains unchanged.
+# Read alpha bounds only; generated PNGs remain unchanged.
+param([ValidateSet('arcade','expansion')][string]$AtlasKind='arcade')
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
-$atlasPath = Join-Path $PSScriptRoot '../assets/images/arcade_atlas.png'
+$atlasPath = Join-Path $PSScriptRoot "../assets/images/${AtlasKind}_atlas.png"
 $atlas = [System.Drawing.Bitmap]::FromFile((Resolve-Path $atlasPath))
 $names = @('swift','striker','enemyScout','enemyInterceptor','enemyGunship','bossCoral','bossHarbor','bossStorm','pulse','enemyBullet','missile','plasma','laser','bossTurret','bossCore','bomb')
+$columns=4
+if($AtlasKind -eq 'expansion') { $names=@('wraith','bossSunset','bossArctic','bossVolcano'); $columns=2 }
 $rects = @{}
 try {
-  for ($index = 0; $index -lt 16; $index++) {
-    $left = [int][Math]::Floor(($index % 4) * $atlas.Width / 4.0)
-    $top = [int][Math]::Floor([Math]::Floor($index / 4.0) * $atlas.Height / 4.0)
-    $right = [int][Math]::Floor((($index % 4) + 1) * $atlas.Width / 4.0)
-    $bottom = [int][Math]::Floor(([Math]::Floor($index / 4.0) + 1) * $atlas.Height / 4.0)
+  for ($index = 0; $index -lt $names.Length; $index++) {
+    $left = [int][Math]::Floor(($index % $columns) * $atlas.Width / $columns)
+    $top = [int][Math]::Floor([Math]::Floor($index / $columns) * $atlas.Height / $columns)
+    $right = [int][Math]::Floor((($index % $columns) + 1) * $atlas.Width / $columns)
+    $bottom = [int][Math]::Floor(([Math]::Floor($index / $columns) + 1) * $atlas.Height / $columns)
     $minX = $right; $maxX = $left; $minY = $bottom; $maxY = $top
     for ($y = $top; $y -lt $bottom; $y++) {
       for ($x = $left; $x -lt $right; $x++) {
@@ -25,6 +28,6 @@ try {
   }
   $manifest = @{ width = $atlas.Width; height = $atlas.Height; sprites = $rects }
   $json = $manifest | ConvertTo-Json -Depth 4
-  [System.IO.File]::WriteAllText((Join-Path $PSScriptRoot '../assets/images/arcade_atlas.json'), $json, [System.Text.UTF8Encoding]::new($false))
+  [System.IO.File]::WriteAllText((Join-Path $PSScriptRoot "../assets/images/${AtlasKind}_atlas.json"), $json, [System.Text.UTF8Encoding]::new($false))
   Write-Output $json
 } finally { $atlas.Dispose() }

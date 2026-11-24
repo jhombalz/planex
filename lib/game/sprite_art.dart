@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'weapon.dart';
+import 'campaign.dart';
 
 /// One decoded transparent atlas shared by gameplay, hangar and weapon controls.
 class SpriteArt {
   static ui.Image? _image;
+  static final Map<String, ui.Image> _sheets = {};
   static final Map<String, Rect> regions = {};
   static final Map<String, ui.Image> backgrounds = {};
   static Future<void>? _loading;
@@ -50,7 +52,44 @@ class SpriteArt {
         }
         regions[entry.key] = rect;
       }
-      for (final name in ['coral', 'harbor', 'storm']) {
+      final extraManifest = jsonDecode(
+        await rootBundle.loadString('assets/images/expansion_atlas.json'),
+      ) as Map<String, dynamic>;
+      final extraBytes = await rootBundle.load(
+        'assets/images/expansion_atlas.png',
+      );
+      final extraCodec = await ui.instantiateImageCodec(
+        extraBytes.buffer.asUint8List(),
+      );
+      try {
+        final extra = (await extraCodec.getNextFrame()).image;
+        if (extra.width != extraManifest['width'] ||
+            extra.height != extraManifest['height']) {
+          throw StateError('Expansion sprite dimensions mismatch');
+        }
+        for (final entry
+            in (extraManifest['sprites'] as Map<String, dynamic>).entries) {
+          final v = (entry.value as List).cast<num>();
+          final rect = Rect.fromLTWH(
+            v[0].toDouble(),
+            v[1].toDouble(),
+            v[2].toDouble(),
+            v[3].toDouble(),
+          );
+          if (rect.isEmpty ||
+              rect.left < 0 ||
+              rect.top < 0 ||
+              rect.right > extra.width ||
+              rect.bottom > extra.height) {
+            throw StateError('Invalid expansion region');
+          }
+          regions[entry.key] = rect;
+          _sheets[entry.key] = extra;
+        }
+      } finally {
+        extraCodec.dispose();
+      }
+      for (final name in campaign.map((level) => level.background)) {
         final bytes = await rootBundle.load(
           'assets/images/background_$name.png',
         );
@@ -89,7 +128,7 @@ class SpriteArt {
     double tintStrength = 0.55,
     double yScale = 1,
   }) {
-    final image = _image;
+    final image = _sheets[sprite] ?? _image;
     final source = regions[sprite];
     if (image == null || source == null) return;
     final fitted = stretch

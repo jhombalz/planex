@@ -48,7 +48,7 @@ class Artwork {
   }) {
     SpriteArt.draw(
       canvas,
-      type == Aircraft.swift ? 'swift' : 'striker',
+      type.name,
       at,
       Size((type == Aircraft.swift ? 48 : 54) * scale, 60 * scale),
       rotation: rotation,
@@ -84,9 +84,12 @@ class Artwork {
         EnemyPattern.straight => 'enemyScout',
         EnemyPattern.sine => 'enemyInterceptor',
         EnemyPattern.turret => 'enemyGunship',
+        EnemyPattern.miniboss => 'bossHarbor',
       },
       at,
-      Size(pattern == EnemyPattern.turret ? 54 : 48, 56),
+      pattern == EnemyPattern.miniboss
+          ? const Size(86, 64)
+          : Size(pattern == EnemyPattern.turret ? 54 : 48, 56),
       tint: hit ? Colors.white : null,
       tintStrength: 0.85,
       yScale: yScale,
@@ -123,7 +126,14 @@ class Artwork {
     final center = Offset(boss.position.x, boss.position.y);
     SpriteArt.draw(
       canvas,
-      ['bossCoral', 'bossHarbor', 'bossStorm'][stage - 1],
+      [
+        'bossCoral',
+        'bossHarbor',
+        'bossStorm',
+        'bossSunset',
+        'bossArctic',
+        'bossVolcano',
+      ][stage - 1],
       center,
       const Size(214, 140),
       stretch: true,
