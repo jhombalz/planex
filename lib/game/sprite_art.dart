@@ -10,7 +10,9 @@ import 'weapon.dart';
 class SpriteArt {
   static ui.Image? _image;
   static final Map<String, Rect> regions = {};
+  static final Map<String, ui.Image> backgrounds = {};
   static Future<void>? _loading;
+  static final Map<(int?, int, int), Paint> _paints = {};
   static bool get ready => _image != null;
   static Future<void> load() => _loading ??= _load();
 
@@ -48,6 +50,20 @@ class SpriteArt {
         }
         regions[entry.key] = rect;
       }
+      for (final name in ['coral', 'harbor', 'storm']) {
+        final bytes = await rootBundle.load(
+          'assets/images/background_$name.png',
+        );
+        final backgroundCodec = await ui.instantiateImageCodec(
+          bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+          targetWidth: 512,
+        );
+        try {
+          backgrounds[name] = (await backgroundCodec.getNextFrame()).image;
+        } finally {
+          backgroundCodec.dispose();
+        }
+      }
       _image = image;
     } finally {
       codec.dispose();
@@ -70,6 +86,8 @@ class SpriteArt {
     bool stretch = false,
     double opacity = 1,
     Color? tint,
+    double tintStrength = 0.55,
+    double yScale = 1,
   }) {
     final image = _image;
     final source = regions[sprite];
@@ -79,6 +97,7 @@ class SpriteArt {
         : applyBoxFit(BoxFit.contain, source.size, size).destination;
     canvas.save();
     canvas.translate(center.dx, center.dy);
+    canvas.scale(1, yScale);
     if (rotation != 0) canvas.rotate(rotation);
     canvas.drawImageRect(
       image,
@@ -88,14 +107,31 @@ class SpriteArt {
         width: fitted.width,
         height: fitted.height,
       ),
-      Paint()
-        ..filterQuality = FilterQuality.low
-        ..colorFilter = tint == null
-            ? null
-            : ColorFilter.mode(tint.withValues(alpha: 0.55), BlendMode.srcATop)
-        ..color = Color.fromRGBO(255, 255, 255, opacity),
+      _paint(tint, opacity, tintStrength),
     );
     canvas.restore();
+  }
+
+  static Paint _paint(Color? tint, double opacity, double strength) {
+    final key = (
+      tint?.toARGB32(),
+      (opacity * 255).round().clamp(0, 255),
+      (strength * 255).round().clamp(0, 255),
+    );
+    final cached = _paints[key];
+    if (cached != null) return cached;
+    if (_paints.length >= 64) _paints.clear();
+    final paint = Paint()
+      ..filterQuality = FilterQuality.low
+      ..colorFilter = tint == null
+          ? null
+          : ColorFilter.mode(
+              tint.withValues(alpha: strength),
+              BlendMode.srcATop,
+            )
+      ..color = Color.fromARGB(key.$2, 255, 255, 255);
+    _paints[key] = paint;
+    return paint;
   }
 }
 

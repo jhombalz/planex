@@ -4,7 +4,7 @@ Offline fullscreen Android arcade shooter built with Flutter and Flame.
 
 ## Download
 
-[**Download Android APK v0.8.0**](https://github.com/jhombalz/planex/releases/download/v0.8.0-bonus/planex-v0.8.0.apk)
+[**Download Android APK v0.9.0**](https://github.com/jhombalz/planex/releases/download/v0.9.0-polish/planex-v0.9.0.apk)
 
 Open the link on your phone, download the APK, then install it. Allow installation
 from your browser when Android prompts. It installs over earlier Planex test builds
@@ -15,7 +15,39 @@ This optimized test build uses development signing. Physical-phone validation of
 immersive fullscreen, native audio, balancing and sustained performance is pending.
 
 [All releases](https://github.com/jhombalz/planex/releases) ·
-[Previous v0.7.0 APK](https://github.com/jhombalz/planex/releases/download/v0.7.0-sprites/planex-v0.7.0.apk)
+[Previous v0.8.0 APK](https://github.com/jhombalz/planex/releases/download/v0.8.0-bonus/planex-v0.8.0.apk)
+
+## v0.9.0 polish update
+
+All six recommended improvement areas were implemented before building this version:
+
+1. **Fairer attacks:** enemies show a 300 ms firing cue and lock their aim before
+   firing. Boss volleys have charge indicators. A three-second warning precedes
+   boss arrival, and bosses do not shoot while entering behind the HUD.
+2. **Scrolling scenery:** original tropical coastline, industrial harbor and storm
+   island images replace the simple background shapes. The central channel stays
+   dark for projectile readability. Images are decoded once at 512px width.
+3. **Combat feedback:** brief hit flashes, impact sounds, damage smoke, animated
+   propellers and distinct Pulse/Laser/Missile/Plasma sounds. Reduced motion
+   suppresses flashes and freezes scenery/propeller animation.
+4. **Pickup polish:** nearby drops attract toward the player, pickups announce
+   their effect, and a three-second expiry warning accompanies the red bonus timer.
+5. **Boss variety:** Reef Reaper uses a wide fan, Harbor Hammer alternates turret
+   crossfire, and Storm Emperor fires rotating spirals. Each has different movement
+   and a 1.4-second destruction sequence before level clear. The final boss has
+   purple energy bursts; destruction cannot harm the player or score twice.
+6. **Screen/performance polish:** aircraft and projectile images preserve their
+   proportions on tall fullscreen displays. Controls respect cutouts. Sprite paint
+   objects use a bounded cache, projectiles remain pooled, and a ten-minute headless
+   combat simulation checks entity limits. Physical-device FPS/audio testing is
+   still pending because no Android phone was connected.
+
+<img src="assets/images/background_coral.png" width="140" alt="Coral coast scenery">
+<img src="assets/images/background_harbor.png" width="140" alt="Industrial harbor scenery">
+<img src="assets/images/background_storm.png" width="140" alt="Storm island scenery">
+
+The scenery was created with built-in imagegen. Original files are in
+`assets/images/background_*.png`; exact prompts are in [SCENERY_PROMPTS.txt](assets/SCENERY_PROMPTS.txt).
 
 ## Controls and bonuses
 
@@ -74,17 +106,22 @@ from one cached atlas. Runtime tinting distinguishes aircraft weapon effects.
 The atlas was created with built-in imagegen using the supplied arcade screenshot
 as a style reference. See the [prompt](assets/ART_PROMPT.txt),
 [sprite index](assets/images/arcade_atlas.json) and [asset provenance](assets/LICENSE.txt).
-Scenery and explosions are rendered in code; audio is synthesized and bundled.
+Scenery uses bundled images; explosions and warning overlays are rendered in code.
+Audio is synthesized and bundled.
 
 ## Development status and verification
 
 Phases 1–5 are implemented. Phase 6 remains: device acceptance testing,
 balancing/performance, production signing and AAB preparation.
 
-For v0.8.0, analysis and all **39 automated tests** passed. Tests cover combat,
+For v0.9.0, analysis and all **53 automated tests** passed. Tests cover combat,
 bonus collection/expiry, combo rewards, multibeam damage, P volley upgrades,
 legacy-save migration, level-2 unlocks, icon controls, viewport sizing and pause.
-Phone-sized rendering was inspected. Native system bars and audio still require
+Additional checks cover boss variants/destruction, firing cues, pickup attraction,
+background wrap, image aspect ratios, cutouts and a ten-minute combat simulation.
+The simulation report is written to `build/combat-soak.json`; its timing is not
+a measurement of physical-device FPS. Phone-sized rendering was inspected.
+Native system bars and audio still require
 physical-device verification.
 
 ```sh

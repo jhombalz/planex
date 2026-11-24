@@ -135,6 +135,11 @@ void main() {
       final score = state.score;
       state.damageBossPart(boss.core, 1000);
       expect(state.score, score);
+      expect(boss.dying, isTrue);
+      expect(state.stageCleared, isFalse);
+      for (var i = 0; i < 15; i++) {
+        state.update(0.1);
+      }
       expect(state.stageCleared, isTrue);
       final time = state.elapsed;
       state.update(0.1);
@@ -162,14 +167,17 @@ void main() {
     () {
       final state = CombatState()..stage = 2;
       state.boss = StageBoss(2)
-        ..position.setValues(180, 110)
+        ..position.setValues(180, 215)
         ..radialTime = 2
         ..aimedTime = 2;
       state.update(0.01);
+      for (var i = 0; i < 4; i++) {
+        state.update(0.1);
+      }
       final shots = state.bullets.items
           .where((b) => b.active && b.owner == BulletOwner.enemy)
           .toList();
-      expect(shots.length, 13);
+      expect(shots.length, 10);
       expect(shots.every((b) => b.velocity.y > 0), isTrue);
     },
   );

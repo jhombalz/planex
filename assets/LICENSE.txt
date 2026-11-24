@@ -6,6 +6,11 @@ reference; no aircraft sprites were extracted from it. See ART_PROMPT.txt for th
 generation prompt. The generated PNG is retained unchanged; its JSON file indexes
 the alpha bounds of individual sprites for runtime rendering.
 
-The procedural environments, UI/effects and synthesized audio were created for
-this repository. Audio is reproducible with tool/generate_audio.dart.
+The three scrolling scenery images were generated with built-in imagegen for
+this repository. Original PNGs are under assets/images/background_*.png and exact
+prompts are in SCENERY_PROMPTS.txt. Images are unchanged on disk and downsampled
+only during runtime decoding to reduce texture memory.
+
+UI/effects and synthesized audio were created for this repository.
+Audio is reproducible with tool/generate_audio.dart.
 No third-party arcade-game sprite sheets or soundtrack files are bundled.

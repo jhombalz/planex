@@ -107,7 +107,7 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
                               style: IconButton.styleFrom(
                                 minimumSize: const Size(64, 64),
                               ),
-                              onPressed: game.combat.bombs > 0
+                              onPressed: game.combat.canUseBomb
                                   ? game.useBomb
                                   : null,
                               icon: const SpriteIcon('bomb', size: 38),
@@ -133,7 +133,9 @@ class _PlanexAppState extends State<PlanexApp> with WidgetsBindingObserver {
                                         1,
                                       ),
                                       strokeWidth: 3,
-                                      color: const Color(0xffffd16a),
+                                      color: game.combat.bonusTime <= 3
+                                          ? const Color(0xffff786f)
+                                          : const Color(0xffffd16a),
                                     ),
                                     SpriteIcon(
                                       SpriteArt.weaponSprite(

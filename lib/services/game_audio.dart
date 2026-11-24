@@ -73,7 +73,14 @@ class GameAudio {
         if (_disposed || muted || (!_wanted && sound != CombatSound.clear)) {
           return;
         }
-        await player.setVolume(sound == CombatSound.shot ? 0.13 : 0.45);
+        await player.setVolume(switch (sound) {
+          CombatSound.shot => 0.13,
+          CombatSound.hit => 0.14,
+          CombatSound.laser => 0.08,
+          CombatSound.missile => 0.22,
+          CombatSound.plasma => 0.18,
+          _ => 0.45,
+        });
         if (_disposed || muted || (!_wanted && sound != CombatSound.clear)) {
           return;
         }

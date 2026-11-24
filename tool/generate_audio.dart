@@ -40,6 +40,35 @@ void main() {
   Directory('assets/audio').createSync(recursive: true);
   final random = Random(42);
   write(
+    'laser',
+    0.12,
+    (t) =>
+        (sin(2 * pi * 860 * t) + sin(2 * pi * 1720 * t) * 0.25) *
+        sin(pi * t / 0.12) *
+        0.3,
+  );
+  write(
+    'missile',
+    0.22,
+    (t) =>
+        (sin(2 * pi * (180 * t + 1200 * t * t)) * 0.4 +
+            sin(2 * pi * 3100 * t) * 0.1) *
+        exp(-t * 12),
+  );
+  write(
+    'plasma',
+    0.18,
+    (t) => sin(2 * pi * (380 * t - 650 * t * t)) * exp(-t * 18) * 0.65,
+  );
+  write(
+    'hit',
+    0.055,
+    (t) =>
+        (sin(2 * pi * 220 * t) + sin(2 * pi * 740 * t) * 0.3) *
+        exp(-t * 70) *
+        0.45,
+  );
+  write(
     'shot',
     0.09,
     (t) => sin(2 * pi * (1600 * t - 5000 * t * t)) * exp(-t * 45) * 0.5,

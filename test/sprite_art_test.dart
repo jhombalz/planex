@@ -3,10 +3,46 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:planex/game/sprite_art.dart';
+import 'package:planex/game/scenery.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(SpriteArt.load);
+
+  test(
+    'three cached scenery images cover the viewport through scroll wrap',
+    () async {
+      expect(SpriteArt.backgrounds.length, 3);
+      expect(
+        SpriteArt.backgrounds.values.every((image) => image.width <= 512),
+        isTrue,
+      );
+      for (var stage = 1; stage <= 3; stage++) {
+        for (final scroll in [0.0, 320.0, 639.9, 640.0]) {
+          final recorder = ui.PictureRecorder();
+          final canvas = ui.Canvas(recorder)..scale(64 / 360, 96 / 640);
+          Scenery.draw(canvas, stage, scroll);
+          final picture = recorder.endRecording();
+          final image = await picture.toImage(64, 96);
+          try {
+            final bytes = await image.toByteData(
+              format: ui.ImageByteFormat.rawRgba,
+            );
+            for (final pixel in [0, 63, 64 * 95, 64 * 96 - 1, 64 * 48 + 32]) {
+              expect(
+                bytes!.getUint8(pixel * 4 + 3),
+                255,
+                reason: 'stage $stage scroll $scroll',
+              );
+            }
+          } finally {
+            image.dispose();
+            picture.dispose();
+          }
+        }
+      }
+    },
+  );
 
   test(
     'atlas loads once and contains all aircraft and projectile regions',

@@ -104,6 +104,9 @@ void main() {
     state.update(0.1);
     expect(sine.position.x, isNot(100));
     expect(turret.position.y, 120);
+    for (var i = 0; i < 3; i++) {
+      state.update(0.1);
+    }
     final shot = state.bullets.items.firstWhere(
       (b) => b.active && b.owner == BulletOwner.enemy,
     );

@@ -12,6 +12,7 @@ import 'artwork.dart';
 import 'combat_state.dart';
 import 'weapon.dart';
 import 'sprite_art.dart';
+import 'scenery.dart';
 
 class FlightGame extends FlameGame with DragCallbacks {
   FlightGame(this.profile, {this.enableAudio = true});
@@ -26,6 +27,8 @@ class FlightGame extends FlameGame with DragCallbacks {
   int get score => combat.score;
   double scroll = 0;
   double topInset = 0;
+  double get spriteYScale =>
+      size.x <= 0 || size.y <= 0 ? 1 : (size.x / 360) / (size.y / 640);
   int? _pointer;
   int _hudHash = 0;
   bool _recorded = false;
@@ -76,7 +79,9 @@ class FlightGame extends FlameGame with DragCallbacks {
     unawaited(
       profile.recordRun(
         score,
-        combat.stageCleared ? combat.stage : combat.stage - 1,
+        combat.stageCleared || combat.boss?.dying == true
+            ? combat.stage
+            : combat.stage - 1,
       ),
     );
   }
@@ -152,6 +157,7 @@ class FlightGame extends FlameGame with DragCallbacks {
       profile.leftHanded,
       combat.weapon,
       combat.bonusTime.ceil(),
+      combat.boss?.dying,
     );
     if (hash != _hudHash) {
       _hudHash = hash;
@@ -170,7 +176,7 @@ class FlightGame extends FlameGame with DragCallbacks {
   void update(double dt) {
     super.update(dt);
     if (!active) return;
-    scroll = (scroll + min(dt, 0.1) * 55) % 640;
+    if (!profile.reducedMotion) scroll = (scroll + min(dt, 0.1) * 24) % 640;
     combat.update(dt);
     _playSounds();
     refreshHud();
@@ -218,6 +224,47 @@ class FlightGame extends FlameGame with DragCallbacks {
     painter.paint(canvas, at);
   }
 
+  void smoke(Canvas canvas, Offset at, double age) {
+    for (var i = 0; i < 3; i++) {
+      final progress = profile.reducedMotion ? i / 3 : (age * 0.8 + i / 3) % 1;
+      canvas.drawCircle(
+        at + Offset(sin(progress * 5) * 7, -progress * 35),
+        4 + progress * 10,
+        Paint()..color = Color.fromRGBO(48, 51, 61, (1 - progress) * 0.55),
+      );
+    }
+  }
+
+  void warning(
+    Canvas canvas,
+    Offset at,
+    double angle,
+    double charge, {
+    bool spread = false,
+  }) {
+    final paint = Paint()
+      ..color = const Color(0x99ffbf68)
+      ..strokeWidth = 1;
+    for (final offset in spread ? [-0.18, 0.0, 0.18] : [0.0]) {
+      final direction = Offset(cos(angle + offset), sin(angle + offset));
+      for (var i = 0; i < 5; i++) {
+        canvas.drawLine(
+          at + direction * (24 + i * 17),
+          at + direction * (30 + i * 17),
+          paint,
+        );
+      }
+    }
+    canvas.drawCircle(
+      at,
+      profile.reducedMotion ? 13 : 10 + charge * 20,
+      Paint()
+        ..color = const Color(0xffffc46b)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+  }
+
   @override
   void render(Canvas canvas) {
     super.render(canvas);
@@ -226,55 +273,14 @@ class FlightGame extends FlameGame with DragCallbacks {
     canvas.save();
     canvas.scale(size.x / 360, size.y / 640);
     canvas.clipRect(const Rect.fromLTWH(0, 0, 360, 640));
-    final background = const [
-      Color(0xff092f45),
-      Color(0xff152d3e),
-      Color(0xff202742),
-    ][combat.stage - 1];
-    canvas.drawRect(
-      const Rect.fromLTWH(0, 0, 360, 640),
-      Paint()..color = background,
-    );
+    Scenery.draw(canvas, combat.stage, scroll);
     if (combat.bombFlash > 0 && !profile.reducedMotion) {
       canvas.translate(
         sin(combat.bombFlash * 120) * 3,
         cos(combat.bombFlash * 90) * 3,
       );
     }
-    for (var i = 0; i < 18; i++) {
-      final y = (i * 83.0 + scroll) % 720 - 60;
-      final x = (i * 137.0) % 360;
-      if (combat.stage == 2) {
-        canvas.drawRect(
-          Rect.fromLTWH(i.isEven ? -10 : 316, y, 54, 58),
-          Paint()..color = const Color(0xff425263),
-        );
-        canvas.drawLine(
-          Offset(0, y + 64),
-          Offset(360, y + 64),
-          Paint()..color = const Color(0xff274958),
-        );
-      } else {
-        canvas.drawOval(
-          Rect.fromCenter(
-            center: Offset(x, y),
-            width: combat.stage == 1 ? 85 : 150,
-            height: 24,
-          ),
-          Paint()
-            ..color = combat.stage == 1
-                ? const Color(0xff104459)
-                : const Color(0xff303952),
-        );
-        if (combat.stage == 1 && i % 5 == 0) {
-          canvas.drawOval(
-            Rect.fromCenter(center: Offset(x, y), width: 54, height: 30),
-            Paint()..color = const Color(0xff36715c),
-          );
-        }
-      }
-    }
-    if (active && combat.weapon == Weapon.laser) {
+    if (active && combat.weapon == Weapon.laser && combat.boss?.dying != true) {
       for (final offset in combat.laserOffsets) {
         final beamX = combat.player.x + offset;
         final target = combat.boss;
@@ -306,8 +312,12 @@ class FlightGame extends FlameGame with DragCallbacks {
             'missile',
             point,
             const Size(16, 30),
-            rotation: atan2(shot.velocity.x, -shot.velocity.y),
+            rotation: atan2(
+              shot.velocity.x * size.x / 360,
+              -shot.velocity.y * size.y / 640,
+            ),
             tint: Color(combat.aircraft.weaponColor),
+            yScale: spriteYScale,
           );
           continue;
         }
@@ -318,6 +328,7 @@ class FlightGame extends FlameGame with DragCallbacks {
             point,
             const Size(22, 22),
             tint: Color(combat.aircraft.weaponColor),
+            yScale: spriteYScale,
           );
           continue;
         }
@@ -327,17 +338,53 @@ class FlightGame extends FlameGame with DragCallbacks {
           point,
           const Size(8, 22),
           tint: Color(combat.aircraft.weaponColor),
+          yScale: spriteYScale,
         );
       } else {
-        SpriteArt.draw(canvas, 'enemyBullet', point, const Size(12, 12));
+        SpriteArt.draw(
+          canvas,
+          'enemyBullet',
+          point,
+          const Size(12, 12),
+          yScale: spriteYScale,
+        );
       }
     }
     for (final enemy in combat.enemies) {
+      final at = Offset(enemy.position.x, enemy.position.y);
+      if (enemy.health * 2 <= enemy.maxHealth) {
+        smoke(canvas, at - const Offset(0, 15), enemy.age);
+      }
       Artwork.enemy(
         canvas,
         Offset(enemy.position.x, enemy.position.y),
         enemy.pattern,
+        hit: !profile.reducedMotion && enemy.hitTime > 0.065,
+        yScale: spriteYScale,
+        age: enemy.age,
+        motion: !profile.reducedMotion,
       );
+      if (enemy.charge > 0) {
+        warning(
+          canvas,
+          at + const Offset(0, 20),
+          enemy.aimAngle,
+          enemy.charge,
+          spread:
+              enemy.pattern == EnemyPattern.turret ||
+              (combat.stage >= 2 && enemy.pattern == EnemyPattern.sine),
+        );
+      }
+      if (enemy.hitTime > 0.065 && !profile.reducedMotion) {
+        canvas.drawCircle(
+          at,
+          8,
+          Paint()
+            ..color = const Color(0xffffecaa)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2,
+        );
+      }
       Artwork.healthBar(
         canvas,
         Rect.fromLTWH(enemy.position.x - 20, enemy.position.y - 36, 40, 5),
@@ -345,7 +392,60 @@ class FlightGame extends FlameGame with DragCallbacks {
         enemy.maxHealth,
       );
     }
-    if (combat.boss != null) Artwork.boss(canvas, combat.boss!, combat.stage);
+    if (combat.boss != null) {
+      final boss = combat.boss!;
+      final at = Offset(boss.position.x, boss.position.y);
+      for (final part in boss.parts) {
+        if (part.health * 2 <= part.maxHealth) {
+          smoke(canvas, at + Offset(part.offsetX, -20), boss.age);
+        }
+      }
+      Artwork.boss(
+        canvas,
+        boss,
+        combat.stage,
+        flashes: !profile.reducedMotion,
+        yScale: spriteYScale,
+      );
+      if (boss.fanCharge > 0 && !boss.dying) {
+        final origin =
+            at +
+            Offset(
+              combat.stage == 2 ? ((boss.volleys + 1).isEven ? -68 : 68) : 0,
+              28,
+            );
+        canvas.drawArc(
+          Rect.fromCircle(center: origin, radius: 45),
+          combat.stage == 3
+              ? 0
+              : combat.stage == 2
+              ? pi * 0.2
+              : pi * 0.12,
+          combat.stage == 3
+              ? pi * 2
+              : combat.stage == 2
+              ? pi * 0.6
+              : pi * 0.76,
+          false,
+          Paint()
+            ..color = const Color(0xffffa365)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2,
+        );
+      }
+      if (boss.aimCharge > 0 && !boss.dying) {
+        for (final wing in boss.wings) {
+          if (wing.health <= 0) continue;
+          final origin = at + Offset(wing.offsetX, 20);
+          warning(
+            canvas,
+            origin,
+            atan2(boss.aimY - origin.dy, boss.aimX - origin.dx),
+            boss.aimCharge,
+          );
+        }
+      }
+    }
     for (final pickup in combat.pickups) {
       final point = Offset(pickup.position.x, pickup.position.y);
       if (pickup.kind == PickupKind.bonus) {
@@ -363,6 +463,7 @@ class FlightGame extends FlameGame with DragCallbacks {
           SpriteArt.weaponSprite(pickup.weapon!),
           point,
           const Size(24, 28),
+          yScale: spriteYScale,
         );
         continue;
       }
@@ -385,7 +486,15 @@ class FlightGame extends FlameGame with DragCallbacks {
     if (combat.protection <= 0 ||
         profile.reducedMotion ||
         (combat.protection * 8).floor().isEven) {
-      Artwork.aircraft(canvas, player, combat.aircraft);
+      Artwork.aircraft(
+        canvas,
+        player,
+        combat.aircraft,
+        hit: !profile.reducedMotion && combat.playerHitTime > 0.1,
+        yScale: spriteYScale,
+        age: combat.elapsed,
+        motion: !profile.reducedMotion,
+      );
     }
     if (combat.protection > 0) {
       canvas.drawCircle(
@@ -405,16 +514,17 @@ class FlightGame extends FlameGame with DragCallbacks {
       );
       final radius = (blast.large ? 55 : 28) * progress + 3;
       final center = Offset(blast.position.x, blast.position.y);
+      final color = Color(blast.color);
       canvas.drawCircle(
         center,
         radius * 0.65,
-        Paint()..color = Color.fromRGBO(255, 116, 40, (1 - progress) * 0.45),
+        Paint()..color = color.withValues(alpha: (1 - progress) * 0.45),
       );
       canvas.drawCircle(
         center,
         radius,
         Paint()
-          ..color = Color.fromRGBO(255, 184, 91, 1 - progress)
+          ..color = color.withValues(alpha: 1 - progress)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 4 * (1 - progress),
       );
@@ -426,7 +536,7 @@ class FlightGame extends FlameGame with DragCallbacks {
             center + offset * radius * 0.7,
             center + offset * radius * 1.25,
             Paint()
-              ..color = Color.fromRGBO(255, 222, 129, 1 - progress)
+              ..color = color.withValues(alpha: 1 - progress)
               ..strokeWidth = 2,
           );
         }
@@ -479,9 +589,13 @@ class FlightGame extends FlameGame with DragCallbacks {
       );
       label(
         canvas,
-        'BOSS ${combat.stage}  ${boss.exposed ? (boss.core.health < boss.core.maxHealth / 2 ? 'ENRAGED' : 'CORE EXPOSED') : 'CORE SHIELDED'}',
+        '${boss.name} · ${boss.dying
+            ? 'DOWN'
+            : boss.exposed
+            ? 'EXPOSED'
+            : 'SHIELDED'}',
         Offset(14, 59 + inset),
-        size: 10,
+        size: 9,
         color: const Color(0xffffc06d),
       );
       Artwork.healthBar(
@@ -498,6 +612,15 @@ class FlightGame extends FlameGame with DragCallbacks {
         size: 10,
       );
       final parts = boss.wings;
+      if (!boss.dying && (boss.fanCharge > 0 || boss.aimCharge > 0)) {
+        label(
+          canvas,
+          boss.fanCharge > 0 ? boss.attackName : 'AIMED SHOTS',
+          Offset(120, 113 + inset),
+          size: 10,
+          color: const Color(0xffffc46b),
+        );
+      }
       for (var i = 0; i < 2; i++) {
         final part = parts[i];
         final x = 14 + i * 178.0;
@@ -521,8 +644,48 @@ class FlightGame extends FlameGame with DragCallbacks {
           part.maxHealth,
         );
       }
+    } else if (combat.bossApproaching) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(40, 145, 280, 38),
+          const Radius.circular(8),
+        ),
+        Paint()..color = const Color(0xe03d1a25),
+      );
+      label(
+        canvas,
+        'WARNING  ·  BOSS INCOMING',
+        const Offset(55, 155),
+        size: 12,
+        color: const Color(0xffffc16b),
+      );
     } else if (combat.stageTime < 3) {
       label(canvas, combat.stageName, const Offset(55, 240), size: 18);
+    }
+    if (combat.noticeTime > 0) {
+      final notice = TextPainter(
+        text: TextSpan(
+          text: combat.notice,
+          style: const TextStyle(
+            color: Color(0xffffe9a4),
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: 290);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: const Offset(180, 450),
+            width: notice.width + 28,
+            height: 30,
+          ),
+          const Radius.circular(10),
+        ),
+        Paint()..color = const Color(0xdd081b2c),
+      );
+      notice.paint(canvas, Offset(180 - notice.width / 2, 441));
     }
     canvas.restore();
   }

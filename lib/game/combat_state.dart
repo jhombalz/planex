@@ -11,7 +11,17 @@ enum EnemyPattern { straight, sine, turret }
 
 enum PickupKind { power, bomb, bonus }
 
-enum CombatSound { shot, explosion, pickup, bomb, clear }
+enum CombatSound {
+  shot,
+  explosion,
+  pickup,
+  bomb,
+  clear,
+  hit,
+  laser,
+  missile,
+  plasma,
+}
 
 class Pickup {
   Pickup(double x, double y, this.kind, {this.weapon})
@@ -22,11 +32,17 @@ class Pickup {
 }
 
 class Blast {
-  Blast(double x, double y, {this.large = false, this.delay = 0})
-    : position = Vector2(x, y);
+  Blast(
+    double x,
+    double y, {
+    this.large = false,
+    this.delay = 0,
+    this.color = 0xffffb85b,
+  }) : position = Vector2(x, y);
   final Vector2 position;
   final bool large;
   final double delay;
+  final int color;
   double get duration => large ? 0.8 : 0.55;
   double age = 0;
 }
@@ -42,18 +58,32 @@ class BossPart {
   final double offsetX;
   final int maxHealth;
   int health;
+  double hitTime = 0;
 }
 
 class StageBoss {
-  StageBoss(int stage)
+  StageBoss(this.stage)
     : core = BossPart(0, 160 + stage * 70),
       wings = [BossPart(-68, 40 + stage * 18), BossPart(68, 40 + stage * 18)];
+  final int stage;
+  String get name =>
+      const ['REEF REAPER', 'HARBOR HAMMER', 'STORM EMPEROR'][stage - 1];
+  String get attackName =>
+      const ['WIDE FAN', 'CROSSFIRE', 'ROTATING SPIRAL'][stage - 1];
   final position = Vector2(180, -90);
   final BossPart core;
   final List<BossPart> wings;
   double age = 0;
   double radialTime = 0;
   double aimedTime = 0;
+  double fanCharge = 0;
+  double aimCharge = 0;
+  double aimX = 180;
+  double aimY = 530;
+  int volleys = 0;
+  double deathTime = 0;
+  int deathBursts = 0;
+  bool get dying => core.health <= 0;
   bool get exposed => wings.every((part) => part.health <= 0);
   late final List<BossPart> parts = List.unmodifiable([...wings, core]);
 }
@@ -151,6 +181,9 @@ class Enemy {
   final double speed;
   double age = 0;
   double fireTime = 0;
+  double charge = 0;
+  double aimAngle = pi / 2;
+  double hitTime = 0;
   final int maxHealth;
   int health;
 }
@@ -165,6 +198,10 @@ class CombatState {
   final blasts = <Blast>[];
   final bombWaves = <BombWave>[];
   final sounds = <CombatSound>{};
+  String notice = '';
+  double noticeTime = 0;
+  double playerHitTime = 0;
+  bool get bossApproaching => boss == null && stageTime >= 42 && stageTime < 45;
   Aircraft aircraft = Aircraft.swift;
   Weapon weapon = Weapon.pulse;
   double bonusTime = 0;
@@ -208,6 +245,8 @@ class CombatState {
   double fireTime = 0;
   double waveTime = 0;
   bool ended = false;
+  bool get canUseBomb =>
+      bombs > 0 && !ended && !stageCleared && boss?.dying != true;
   int get difficulty => min(6, 1 + elapsed ~/ 25);
 
   void reset({Aircraft selected = Aircraft.swift}) {
@@ -218,6 +257,8 @@ class CombatState {
     blasts.clear();
     bombWaves.clear();
     sounds.clear();
+    notice = '';
+    noticeTime = playerHitTime = 0;
     aircraft = selected;
     power = selected.startingPower;
     bombs = 2;
@@ -250,10 +291,14 @@ class CombatState {
   void _step(double dt) {
     elapsed += dt;
     stageTime += dt;
+    noticeTime = max(0, noticeTime - dt);
+    playerHitTime = max(0, playerHitTime - dt);
     killWindow = max(0, killWindow - dt);
     if (killWindow == 0) streak = 0;
     if (bonusTime > 0) {
+      final previousBonus = bonusTime;
       bonusTime = max(0, bonusTime - dt);
+      if (previousBonus > 3 && bonusTime <= 3) announce('BONUS ENDING');
       if (bonusTime == 0) {
         weapon = Weapon.pulse;
         fireTime = laserTime = 0;
@@ -268,8 +313,21 @@ class CombatState {
       wave.age += dt;
     }
     bombWaves.removeWhere((wave) => wave.age >= 1);
+    if (boss?.dying == true) {
+      _updateDestruction(dt);
+      return;
+    }
     for (final pickup in pickups) {
-      pickup.position.y += dt * 65;
+      final dx = player.x - pickup.position.x;
+      final dy = player.y - pickup.position.y;
+      final distance = sqrt(dx * dx + dy * dy);
+      if (distance > 0 && distance < 110) {
+        final travel = min(distance, dt * 220);
+        pickup.position.x += dx / distance * travel;
+        pickup.position.y += dy / distance * travel;
+      } else {
+        pickup.position.y += dt * 65;
+      }
       if (_near(pickup.position, player, 30)) {
         collect(pickup.kind, bonus: pickup.weapon);
         pickup.position.y = 900;
@@ -310,6 +368,8 @@ class CombatState {
     }
     if (stageCleared) return;
     for (final enemy in enemies) {
+      if (enemy.health <= 0) continue;
+      enemy.hitTime = max(0, enemy.hitTime - dt);
       enemy.age += dt;
       if (enemy.pattern == EnemyPattern.turret &&
           enemy.position.y >= 120 &&
@@ -321,17 +381,18 @@ class CombatState {
       if (enemy.pattern == EnemyPattern.sine) {
         enemy.position.x = enemy.originX + sin(enemy.age * 2.6) * 35;
       }
+      if (enemy.position.y <= 20 || enemy.position.y >= 480) {
+        enemy.fireTime = enemy.charge = 0;
+        continue;
+      }
       enemy.fireTime += dt;
-      if (enemy.position.y > 20 &&
-          enemy.position.y < 480 &&
-          enemy.fireTime >= enemyFireInterval) {
+      if (enemy.charge > 0) {
+        enemy.charge = max(0, enemy.charge - dt);
+        if (enemy.charge > 0) continue;
         enemy.fireTime = 0;
-        final dx = player.x - enemy.position.x;
-        final dy = player.y - enemy.position.y;
-        final length = sqrt(dx * dx + dy * dy);
         final speed = enemyBulletSpeed;
-        final vx = length > 0 ? dx / length * speed : 0.0;
-        final vy = length > 0 ? dy / length * speed : speed.toDouble();
+        final vx = cos(enemy.aimAngle) * speed;
+        final vy = sin(enemy.aimAngle) * speed;
         final spread =
             enemy.pattern == EnemyPattern.turret ||
             (stage >= 2 && enemy.pattern == EnemyPattern.sine);
@@ -344,6 +405,12 @@ class CombatState {
             BulletOwner.enemy,
           );
         }
+      } else if (enemy.fireTime >= enemyFireInterval - 0.3) {
+        enemy.charge = 0.3;
+        enemy.aimAngle = atan2(
+          player.y - enemy.position.y,
+          player.x - enemy.position.x,
+        );
       }
     }
     for (final bullet in bullets.items) {
@@ -367,6 +434,8 @@ class CombatState {
           if (_near(bullet.position, enemy.position, 23)) {
             bullet.active = false;
             enemy.health = max(0, enemy.health - bullet.damage);
+            enemy.hitTime = 0.1;
+            sounds.add(CombatSound.hit);
             if (bullet.kind == Weapon.missiles) {
               explode(bullet.position.x, bullet.position.y, large: true);
             }
@@ -418,7 +487,12 @@ class CombatState {
   }
 
   void shoot() {
-    sounds.add(CombatSound.shot);
+    sounds.add(switch (weapon) {
+      Weapon.pulse => CombatSound.shot,
+      Weapon.laser => CombatSound.laser,
+      Weapon.missiles => CombatSound.missile,
+      Weapon.plasma => CombatSound.plasma,
+    });
     if (weapon == Weapon.laser) return;
     if (weapon == Weapon.missiles) {
       for (final offset in switch (power) {
@@ -492,6 +566,8 @@ class CombatState {
             (enemy.position.x - player.x - offset).abs() <= 18 + laserWidth / 2,
       )) {
         enemy.health = max(0, enemy.health - damage);
+        enemy.hitTime = 0.1;
+        sounds.add(CombatSound.hit);
         if (enemy.health == 0) destroyEnemy(enemy);
       }
     }
@@ -555,25 +631,40 @@ class CombatState {
       if (bonus == null || bonus == Weapon.pulse) return;
       weapon = bonus;
       bonusTime = 18;
+      announce('${bonus.label} BONUS');
       fireTime = laserTime = 0;
     } else if (kind == PickupKind.power) {
       if (power < 4) {
         power++;
+        announce('POWER $power');
       } else {
         score += 1000;
+        announce('MAX POWER +1000');
       }
     } else {
       if (bombs < 5) {
         bombs++;
+        announce('BOMB +1');
       } else {
         score += 500;
       }
     }
   }
 
-  void explode(double x, double y, {bool large = false, double delay = 0}) {
+  void announce(String message) {
+    notice = message;
+    noticeTime = 1.6;
+  }
+
+  void explode(
+    double x,
+    double y, {
+    bool large = false,
+    double delay = 0,
+    int color = 0xffffb85b,
+  }) {
     if (blasts.length >= 32) blasts.removeAt(0);
-    blasts.add(Blast(x, y, large: large, delay: delay));
+    blasts.add(Blast(x, y, large: large, delay: delay, color: color));
     sounds.add(CombatSound.explosion);
   }
 
@@ -615,7 +706,7 @@ class CombatState {
   }
 
   bool useBomb() {
-    if (bombs <= 0 || ended || stageCleared) return false;
+    if (!canUseBomb) return false;
     bombs--;
     if (bombWaves.length >= 3) bombWaves.removeAt(0);
     bombWaves.add(BombWave(player.x, player.y));
@@ -656,16 +747,16 @@ class CombatState {
       return;
     }
     part.health = max(0, part.health - damage);
+    part.hitTime = 0.1;
+    sounds.add(CombatSound.hit);
     if (part.health > 0) return;
     explode(target.position.x + part.offsetX, target.position.y, large: true);
     score += part == target.core ? 3000 * stage : 500;
     if (part == target.core) {
-      stageCleared = true;
-      ended = stage == 3;
       bullets.clear();
       enemies.clear();
       pickups.clear();
-      sounds.add(CombatSound.clear);
+      announce('BOSS DESTROYED');
     }
   }
 
@@ -673,43 +764,103 @@ class CombatState {
     final target = boss;
     if (target == null) return;
     target.age += dt;
-    target.position.x = 180 + sin(target.age * 0.65) * 55;
+    for (final part in target.parts) {
+      part.hitTime = max(0, part.hitTime - dt);
+    }
+    target.position.x = switch (stage) {
+      1 => 180 + sin(target.age * 0.65) * 55,
+      2 => 180 + sin(target.age * 0.45) * 72,
+      _ => 180 + sin(target.age * 0.9) * 60,
+    };
     target.position.y = min(215, target.position.y + dt * 65);
-    if (target.position.y < 90) return;
+    if (target.position.y < 215) return;
     target.radialTime += dt;
     target.aimedTime += dt;
     final enraged = target.core.health < target.core.maxHealth / 2;
-    if (target.radialTime >= bossFanInterval) {
-      target.radialTime = 0;
-      final count = 7 + stage * 2;
-      for (var i = 0; i < count; i++) {
-        final angle = pi * (0.12 + 0.76 * i / (count - 1));
-        final speed = 125 + stage * 22.0 + (enraged ? 18 : 0);
-        bullets.spawn(
-          target.position.x,
-          target.position.y + 28,
-          cos(angle) * speed,
-          sin(angle) * speed,
-          BulletOwner.enemy,
-        );
+    if (target.fanCharge > 0) {
+      target.fanCharge = max(0, target.fanCharge - dt);
+      if (target.fanCharge == 0) {
+        target.radialTime = 0;
+        target.volleys++;
+        final count = stage == 1
+            ? 9
+            : stage == 2
+            ? 8
+            : 14;
+        for (var i = 0; i < count; i++) {
+          final angle = stage == 3
+              ? pi * 2 * i / count + target.volleys * 0.27
+              : stage == 2
+              ? pi * (0.2 + 0.6 * i / (count - 1))
+              : pi * (0.12 + 0.76 * i / (count - 1));
+          final speed = 125 + stage * 22.0 + (enraged ? 18 : 0);
+          // Alternating harbor turrets sweep a slower crossfire fan.
+          bullets.spawn(
+            target.position.x +
+                (stage == 2 ? (target.volleys.isEven ? -68 : 68) : 0),
+            target.position.y + 28,
+            cos(angle) * speed,
+            sin(angle) * speed,
+            BulletOwner.enemy,
+          );
+        }
       }
+    } else if (target.radialTime >= bossFanInterval - 0.22) {
+      target.fanCharge = 0.22;
     }
-    if (target.aimedTime >= max(0.55, 1.1 - stage * 0.12)) {
-      target.aimedTime = 0;
-      for (final wing in target.wings) {
-        if (wing.health <= 0) continue;
-        final x = target.position.x + wing.offsetX;
-        final dx = player.x - x;
-        final dy = player.y - target.position.y;
-        final distance = max(1.0, sqrt(dx * dx + dy * dy));
-        bullets.spawn(
-          x,
-          target.position.y + 20,
-          dx / distance * 170,
-          dy / distance * 170,
-          BulletOwner.enemy,
-        );
+    if (target.aimCharge > 0) {
+      target.aimCharge = max(0, target.aimCharge - dt);
+      if (target.aimCharge == 0) {
+        target.aimedTime = 0;
+        for (final wing in target.wings) {
+          if (wing.health <= 0) continue;
+          final x = target.position.x + wing.offsetX;
+          final dx = target.aimX - x;
+          final dy = target.aimY - target.position.y - 20;
+          final distance = max(1.0, sqrt(dx * dx + dy * dy));
+          bullets.spawn(
+            x,
+            target.position.y + 20,
+            dx / distance * 170,
+            dy / distance * 170,
+            BulletOwner.enemy,
+          );
+        }
       }
+    } else if (target.aimedTime >= max(0.55, 1.1 - stage * 0.12) - 0.3) {
+      target.aimCharge = 0.3;
+      target.aimX = player.x;
+      target.aimY = player.y;
+    }
+  }
+
+  void _updateDestruction(double dt) {
+    final target = boss!;
+    for (final part in target.parts) {
+      part.hitTime = max(0, part.hitTime - dt);
+    }
+    target.deathTime += dt;
+    if (stage == 1) target.position.y += dt * 24;
+    while (target.deathBursts < 8 &&
+        target.deathTime >= target.deathBursts * 0.16) {
+      final n = target.deathBursts++;
+      final x = stage == 1
+          ? (n.isEven ? -60.0 : 60.0)
+          : stage == 2
+          ? sin(n * 2.4) * 80
+          : cos(n * pi / 4) * 55;
+      final y = stage == 3 ? sin(n * pi / 4) * 35 : (n % 3 - 1) * 25.0;
+      explode(
+        target.position.x + x,
+        target.position.y + y,
+        large: true,
+        color: stage == 3 ? 0xffb38cff : 0xffffb85b,
+      );
+    }
+    if (target.deathTime >= 1.4) {
+      stageCleared = true;
+      ended = stage == 3;
+      sounds.add(CombatSound.clear);
     }
   }
 
@@ -733,6 +884,7 @@ class CombatState {
     sounds.clear();
     pickups.clear();
     player.setValues(180, 530);
+    noticeTime = playerHitTime = 0;
     protection = 3;
     bombs = min(5, bombs + 1);
   }
@@ -744,10 +896,11 @@ class CombatState {
   }
 
   void damagePlayer() {
-    if (protection > 0 || ended) return;
+    if (protection > 0 || ended || boss?.dying == true) return;
     lives--;
     explode(player.x, player.y, large: true);
     power = max(1, power - 1);
+    playerHitTime = 0.16;
     weapon = Weapon.pulse;
     bonusTime = 0;
     if (lives == 0) {

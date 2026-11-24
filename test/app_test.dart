@@ -18,6 +18,64 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(SpriteArt.load);
   testWidgets(
+    'controls respect display cutouts while scenery remains fullscreen',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(top: 40, bottom: 24);
+      tester.view.viewPadding = const FakeViewPadding(top: 40, bottom: 24);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPadding);
+      addTearDown(tester.view.resetViewPadding);
+      SharedPreferences.setMockInitialValues({});
+      final profile = PlayerProfile(await SharedPreferences.getInstance());
+      await tester.pumpWidget(PlanexApp(profile: profile, enableAudio: false));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Start flight'));
+      await tester.pump(const Duration(milliseconds: 16));
+      final game = currentGame(tester);
+      expect(game.size.y, 800);
+      expect(game.topInset, 40);
+      expect(
+        tester.getRect(find.byTooltip('Pause flight')).top,
+        greaterThanOrEqualTo(40),
+      );
+      expect(
+        tester.getRect(find.byKey(const Key('bomb-button'))).bottom,
+        lessThanOrEqualTo(776),
+      );
+      game.pauseFlight();
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
+    'quitting during boss destruction saves the cleared level reward',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final profile = PlayerProfile(await SharedPreferences.getInstance());
+      await tester.pumpWidget(PlanexApp(profile: profile, enableAudio: false));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Start flight'));
+      await tester.pump(const Duration(milliseconds: 16));
+      final game = currentGame(tester);
+      game.combat.boss = StageBoss(1)..position.setValues(180, 215);
+      for (final part in game.combat.boss!.parts) {
+        game.combat.damageBossPart(part, 10000);
+      }
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(game.combat.stageCleared, isFalse);
+      game.pauseFlight();
+      await tester.pump();
+      await tester.tap(find.byTooltip('End flight and save score'));
+      await tester.pumpAndSettle();
+      expect(profile.clearedStage, 1);
+      expect(profile.strikerUnlocked, isTrue);
+      expect(profile.scores.length, 1);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets(
     'fullscreen playfield has no weapon switch; bonuses come from drops',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
