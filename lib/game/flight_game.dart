@@ -4,18 +4,16 @@ import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/painting.dart';
 
+import 'combat_state.dart';
+
 /// Procedural art keeps the first playable phase entirely offline.
 class FlightGame extends FlameGame with DragCallbacks {
-  final player = Vector2(180, 530);
-  final shots = <Vector2>[];
-  final enemies = <Vector2>[];
-  final random = Random();
+  final combat = CombatState();
+  Vector2 get player => combat.player;
   bool started = false;
-  bool ended = false;
+  bool get ended => combat.ended;
   bool active = false;
-  int score = 0;
-  double fireTime = 0;
-  double waveTime = 0;
+  int get score => combat.score;
   double scroll = 0;
 
   @override
@@ -26,14 +24,9 @@ class FlightGame extends FlameGame with DragCallbacks {
 
   void startFlight() {
     if (!started || ended) {
-      shots.clear();
-      enemies.clear();
-      player.setValues(180, 530);
-      score = 0;
-      fireTime = waveTime = 0;
+      combat.reset();
     }
     started = active = true;
-    ended = false;
     overlays.remove('menu');
     overlays.add('pause');
     resumeEngine();
@@ -63,36 +56,8 @@ class FlightGame extends FlameGame with DragCallbacks {
     if (!active) return;
     final step = min(dt, 0.05);
     scroll = (scroll + step * 60) % 40;
-    fireTime += step;
-    waveTime += step;
-    while (fireTime >= 0.15) {
-      fireTime -= 0.15;
-      shots.add(Vector2(player.x, player.y - 24));
-    }
-    if (waveTime >= 0.65) {
-      waveTime -= 0.65;
-      enemies.add(Vector2(22 + random.nextDouble() * 316, -25));
-    }
-    for (final shot in shots) {
-      shot.y -= step * 600;
-    }
-    for (final enemy in enemies) {
-      enemy.y += step * 130;
-    }
-    for (final enemy in enemies.toList()) {
-      final hit = shots.indexWhere((shot) => (shot - enemy).length2 < 24 * 24);
-      if (hit >= 0) {
-        shots.removeAt(hit);
-        enemies.remove(enemy);
-        score += 100;
-      } else if ((enemy - player).length2 < 20 * 20) {
-        ended = true;
-        pauseFlight();
-        break;
-      }
-    }
-    shots.removeWhere((shot) => shot.y < -30);
-    enemies.removeWhere((enemy) => enemy.y > 680);
+    combat.update(dt);
+    if (ended) pauseFlight();
   }
 
   @override
@@ -113,19 +78,44 @@ class FlightGame extends FlameGame with DragCallbacks {
     for (double y = scroll - 40; y < 640; y += 40) {
       canvas.drawLine(Offset(0, y), Offset(360, y), grid);
     }
-    for (final shot in shots) {
+    for (final shot in combat.bullets.items) {
+      if (!shot.active) continue;
       canvas.drawRect(
-        Rect.fromCenter(center: Offset(shot.x, shot.y), width: 4, height: 18),
-        Paint()..color = const Color(0xff79ffe1),
+        Rect.fromCenter(
+          center: Offset(shot.position.x, shot.position.y),
+          width: shot.owner == BulletOwner.player ? 4 : 9,
+          height: shot.owner == BulletOwner.player ? 18 : 9,
+        ),
+        Paint()
+          ..color = shot.owner == BulletOwner.player
+              ? const Color(0xff79ffe1)
+              : const Color(0xffffce67),
       );
     }
-    for (final enemy in enemies) {
-      drawJet(canvas, enemy, const Color(0xffff8066), true);
+    for (final enemy in combat.enemies) {
+      drawJet(canvas, enemy.position, switch (enemy.pattern) {
+        EnemyPattern.straight => const Color(0xffff8066),
+        EnemyPattern.sine => const Color(0xffd9a0ff),
+        EnemyPattern.turret => const Color(0xffffce67),
+      }, true);
     }
-    drawJet(canvas, player, const Color(0xff7ae6ff), false);
+    if (combat.protection <= 0 || (combat.protection * 8).floor().isEven) {
+      drawJet(canvas, player, const Color(0xff7ae6ff), false);
+    }
+    if (combat.protection > 0) {
+      canvas.drawCircle(
+        Offset(player.x, player.y),
+        28,
+        Paint()
+          ..color = const Color(0x887ae6ff)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
+    }
     final label = TextPainter(
       text: TextSpan(
-        text: 'SCORE  $score',
+        text:
+            'SCORE  $score\nLIVES  ${combat.lives}    LEVEL  ${combat.difficulty}',
         style: const TextStyle(
           color: Color(0xffffffff),
           fontSize: 18,
